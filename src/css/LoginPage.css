@@ -244,6 +244,14 @@
 .web-login-demo-link:hover {
   color: #173777;
 }
+button.web-login-demo-link {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
 .web-login-footer {
   display: flex;
   justify-content: center;

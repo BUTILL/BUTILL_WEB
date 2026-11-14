@@ -31,9 +31,18 @@ npm run dev                  # http://localhost:5173
 | `VITE_API_URL` | 백엔드 주소. 로컬은 `http://127.0.0.1:8000` |
 | `VITE_SUPABASE_URL` | Supabase 프로젝트 주소 |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase **publishable 키만**. secret 키는 절대 넣지 않습니다 |
+| `VITE_DEMO_ONLY` | `true`면 백엔드 없이 체험 모드로만 동작합니다(아래 참고) |
 
 `VITE_` 값은 빌드 결과에 그대로 들어가 브라우저에 공개됩니다. 공개해도 되는 값만 넣습니다.
 백엔드 `.env`의 `BUTILL_CORS_ORIGINS`에 웹 주소(예: `http://localhost:5173`)가 있어야 API를 호출할 수 있습니다.
+
+## 체험 모드
+
+로그인 없이 예시 데이터(`src/data/*Sample.ts`, `simulation.ts`, `rawMaterials.ts`, `taxCalendar.ts`)로 모든 화면을 둘러보는 모드입니다.
+소개·로그인·회원가입 화면의 **로그인 없이 둘러보기**로 들어가고, 상단바에 "체험 모드"가 표시됩니다. 체험 중에는 백엔드를 호출하지 않습니다.
+지원사업은 가짜 공고를 만들지 않고 기업마당 링크만 안내합니다. 프로필 메뉴의 **체험 끝내기**로 나갑니다.
+
+`VITE_DEMO_ONLY=true`로 빌드하면 누구나 바로 체험 모드이고 로그인·회원가입은 닫힙니다. 백엔드를 배포하기 전 Vercel에 올릴 때 씁니다.
 
 ## 검사
 
@@ -46,7 +55,8 @@ npm run lint
 ## 배포 (Vercel)
 
 1. Vercel에서 `BUTILL/BUTILL_WEB` 레포를 가져옵니다. 설정은 `vercel.json`에 있습니다(Vite, `dist`, 모든 경로를 `index.html`로).
-2. Vercel 프로젝트 환경변수에 위 3개를 넣습니다. `VITE_API_URL`은 **HTTPS로 배포된 백엔드 주소**여야 합니다.
-3. 배포 주소를 백엔드 `BUTILL_CORS_ORIGINS`에 추가합니다.
+2. 환경변수
+   - **백엔드 없이(지금):** `VITE_DEMO_ONLY=true` 하나만 넣습니다.
+   - **백엔드 배포 후:** `VITE_DEMO_ONLY`를 지우고 `VITE_API_URL`(**HTTPS 백엔드 주소**), `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`를 넣은 뒤 다시 배포합니다. 배포 주소는 백엔드 `BUTILL_CORS_ORIGINS`에 추가합니다.
 
 `main`이 배포 브랜치입니다. 작업은 `develop`에서 `feature/*` 브랜치를 따서 PR로 합칩니다.

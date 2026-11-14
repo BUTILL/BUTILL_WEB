@@ -1,13 +1,18 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { loadStoreComparison } from "../api/butill";
+import { loadStoreComparison, type StoreComparison } from "../api/butill";
 import { toScenarios } from "../api/mappers";
-import { useLoad } from "../api/useLoad";
+import { loadNothing, useLoad } from "../api/useLoad";
+import { isDemo } from "../data/demo";
 import {
   scenarioMeta,
+  scenarios as sampleScenarios,
   type Scenario,
   type ScenarioAssumptions,
   type ScenarioKey,
 } from "../data/simulation";
+
+// 체험 모드 그래프의 월 이름: 이번 달부터 12개월
+const demoMonths = () => Array.from({ length: 12 }, (_, i) => `${((new Date().getMonth() + i) % 12) + 1}월`);
 import DashboardHeader from "./DashboardHeader";
 import "../css/SimulationAnalysisWebPage.css";
 
@@ -156,8 +161,11 @@ export default function SimulationAnalysisWebPage() {
     loadSavedAssumptions,
   );
   const [newAssumption, setNewAssumption] = useState("");
-  const [state, reload] = useLoad(loadStoreComparison);
-  const computed = state.status === "ready" && state.data.comparison ? toScenarios(state.data.comparison) : null;
+  const demo = isDemo();
+  const [state, reload] = useLoad<StoreComparison | null>(demo ? loadNothing : loadStoreComparison);
+  const computed = demo
+    ? { scenarios: sampleScenarios, months: demoMonths() }
+    : state.status === "ready" && state.data?.comparison ? toScenarios(state.data.comparison) : null;
   const scenarios: Scenario[] = computed?.scenarios
     ?? scenarioMeta.map((meta) => ({ ...meta, period: "—", fundsInTenThousands: [] }));
   const scenario =
@@ -166,7 +174,7 @@ export default function SimulationAnalysisWebPage() {
     ? "시나리오를 계산하는 중이에요."
     : state.status === "error"
       ? state.message
-      : !state.data.store
+      : !state.data?.store
         ? "등록된 매장이 없어요. 매장을 먼저 등록해 주세요."
         : "경영정보를 버틸 앱에서 입력하면 시나리오를 비교할 수 있어요.";
 
@@ -230,7 +238,7 @@ export default function SimulationAnalysisWebPage() {
             </p>
           </div>
           <span className="analysis-sample-tag">
-            <i /> 앱 입력 경영정보 기준
+            <i /> {demo ? "체험용 예시 데이터" : "앱 입력 경영정보 기준"}
           </span>
         </section>
 

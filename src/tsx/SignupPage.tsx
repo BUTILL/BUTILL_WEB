@@ -2,9 +2,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createStore } from "../api/butill";
 import { errorMessage } from "../api/client";
 import { supabaseConfigured } from "../api/supabase";
-import { hasWebSession, signUp } from "../data/webSession";
+import { demoOnly, enterDemo } from "../data/demo";
+import { hasAuthSession, signUp } from "../data/webSession";
 import "../css/LoginPage.css";
 import "../css/SignupPage.css";
+
+const signupAvailable = supabaseConfigured && !demoOnly;
 
 // 계정을 만든 뒤 분석 대상 매장을 함께 등록합니다. 경영정보는 버틸 앱에서 입력합니다.
 export default function SignupPage() {
@@ -29,7 +32,7 @@ export default function SignupPage() {
     setNotice("");
     try {
       // 매장 등록만 실패했다면 이미 로그인된 계정으로 다시 시도
-      if (!hasWebSession()) await signUp(String(form.get("email")).trim(), password);
+      if (!hasAuthSession()) await signUp(String(form.get("email")).trim(), password);
       await createStore({
         name: String(form.get("storeName")).trim(),
         business_type: form.get("businessType") === "cafe" ? "cafe" : "restaurant",
@@ -138,14 +141,19 @@ export default function SignupPage() {
               <input type="text" name="region" maxLength={100} defaultValue="서울" placeholder="예: 서울 마포구" required />
             </label>
 
-            <button className="web-login-submit" type="submit" disabled={submitting || !supabaseConfigured}>
+            <button className="web-login-submit" type="submit" disabled={submitting || !signupAvailable}>
               {submitting ? "가입 중…" : "가입하고 시작하기"} <span aria-hidden="true">→</span>
             </button>
           </form>
 
           <p className="web-login-notice" aria-live="polite">
-            {notice || (supabaseConfigured ? "" : "로그인 설정(VITE_SUPABASE_URL 등)이 없어 가입할 수 없어요.")}
+            {notice || (demoOnly
+              ? "회원가입은 준비 중이에요. 지금은 로그인 없이 체험 모드로 둘러볼 수 있어요."
+              : supabaseConfigured ? "" : "로그인 설정(VITE_SUPABASE_URL 등)이 없어 가입할 수 없어요.")}
           </p>
+          <button className="web-login-demo-link" type="button" onClick={enterDemo}>
+            로그인 없이 둘러보기 <span aria-hidden="true">→</span>
+          </button>
           <a className="web-login-demo-link" href="/login">
             이미 계정이 있나요? 로그인 <span aria-hidden="true">→</span>
           </a>

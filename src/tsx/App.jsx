@@ -9,8 +9,11 @@ import RawMaterialsAnalysisWebPage from "./RawMaterialsAnalysisWebPage";
 import TaxAnalysisWebPage from "./TaxAnalysisWebPage";
 import SupportProgramsWebPage from "./SupportProgramsWebPage";
 import { loadStoreAnalysis } from "../api/butill";
-import { toDashboard, toReport } from "../api/mappers";
-import { useLoad } from "../api/useLoad";
+import { toDashboard, toReport, todayKst } from "../api/mappers";
+import { loadNothing, useLoad } from "../api/useLoad";
+import { isDemo } from "../data/demo";
+import { sampleDashboardData } from "../data/homeSample";
+import { sampleReportData } from "../data/reportSample";
 import { hasWebSession } from "../data/webSession";
 import "../css/App.css";
 import "../css/DeliveredPages.css";
@@ -71,7 +74,9 @@ function analysisNotice(state, retry) {
 }
 
 function HomePage() {
-  const [state, reload] = useLoad(loadStoreAnalysis);
+  const demo = isDemo();
+  const [state, reload] = useLoad(demo ? loadNothing : loadStoreAnalysis);
+  if (demo) return <Home data={sampleDashboardData} />;
   const analysis = state.status === "ready" ? state.data.analysis : null;
   const notice = analysisNotice(state, () => reload().catch(() => undefined));
   return <Home data={analysis ? toDashboard(analysis) : null} notice={notice} />;
@@ -90,20 +95,31 @@ function readReportRefresh() {
 }
 
 function ReportPage() {
-  const [state, reload] = useLoad(loadStoreAnalysis);
+  const demo = isDemo();
+  const [state, reload] = useLoad(demo ? loadNothing : loadStoreAnalysis);
   const [refreshedAt, setRefreshedAt] = useState(readReportRefresh);
-  const analysis = state.status === "ready" ? state.data.analysis : null;
+  const analysis = state.status === "ready" ? state.data?.analysis : null;
 
   // 새로고침: 저장된 경영정보로 다시 계산하고, 성공한 시각을 화면에 전달
   const refreshReport = useCallback(async (_analysisDate, requestedAt) => {
-    await reload();
+    if (!demo) await reload();
     setRefreshedAt(requestedAt);
     try {
       localStorage.setItem(reportRefreshKey, requestedAt);
     } catch {
       // 저장소를 사용할 수 없어도 현재 화면에는 갱신 결과를 표시
     }
-  }, [reload]);
+  }, [reload, demo]);
+
+  if (demo) {
+    return (
+      <Report
+        data={{ ...sampleReportData, analysisDate: todayKst() }}
+        refreshedAt={refreshedAt}
+        onRefresh={refreshReport}
+      />
+    );
+  }
 
   const notice = analysisNotice(state, () => reload().catch(() => undefined));
   return (

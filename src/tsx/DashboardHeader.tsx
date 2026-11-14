@@ -1,4 +1,5 @@
 import Logout from "./Logout";
+import { demoOnly, isDemo } from "../data/demo";
 import "../css/Home.css";
 
 type DashboardPage = "home" | "report" | "simulation" | "rawMaterials" | "tax" | "support";
@@ -52,7 +53,8 @@ export default function DashboardHeader({
         ))}
       </nav>
       <div className="dashboard-header-actions">
-        <Logout />
+        {isDemo() && <span className="dashboard-demo-badge" title="예시 데이터로 둘러보는 중이에요">체험 모드</span>}
+        {!demoOnly && <Logout />}
       </div>
     </header>
   );
