@@ -1,21 +1,31 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { startWebSession } from "../data/webSession";
+import { supabaseConfigured } from "../api/supabase";
+import { signIn } from "../data/webSession";
 import "../css/LoginPage.css";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [keepLogin, setKeepLogin] = useState(false);
   const [notice, setNotice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     document.title = "BUTILL | 로그인";
   }, []);
 
-  const submitLogin = (event: FormEvent<HTMLFormElement>) => {
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // 인증 API 연동 전에는 로그인 화면에서 홈으로 이동하는 흐름만 시연합니다.
-    startWebSession(keepLogin);
-    window.location.assign("/home");
+    if (submitting) return;
+    const form = new FormData(event.currentTarget);
+    setSubmitting(true);
+    setNotice("");
+    try {
+      await signIn(String(form.get("email")).trim(), String(form.get("password")), keepLogin);
+      window.location.assign("/home");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "로그인하지 못했어요.");
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -52,12 +62,12 @@ export default function LoginPage() {
 
           <form onSubmit={submitLogin}>
             <label className="web-login-field">
-              아이디 또는 이메일
+              이메일
               <input
-                type="text"
-                name="username"
+                type="email"
+                name="email"
                 autoComplete="username"
-                placeholder="아이디 또는 이메일을 입력하세요"
+                placeholder="이메일을 입력하세요"
                 required
               />
             </label>
@@ -98,19 +108,19 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <button className="web-login-submit" type="submit">
-              로그인 <span aria-hidden="true">→</span>
+            <button className="web-login-submit" type="submit" disabled={submitting || !supabaseConfigured}>
+              {submitting ? "로그인 중…" : "로그인"} <span aria-hidden="true">→</span>
             </button>
           </form>
 
           <p className="web-login-notice" aria-live="polite">
-            {notice || "현재는 시연용 화면입니다. 로그인 버튼을 누르면 예시 홈으로 이동해요."}
+            {notice || (supabaseConfigured ? "" : "로그인 설정(VITE_SUPABASE_URL 등)이 없어 로그인할 수 없어요.")}
           </p>
-          <a className="web-login-demo-link" href="/home" onClick={() => startWebSession()}>
-            로그인 없이 분석 화면 둘러보기 <span aria-hidden="true">→</span>
+          <a className="web-login-demo-link" href="/signup">
+            처음이신가요? 회원가입 <span aria-hidden="true">→</span>
           </a>
           <div className="web-login-footer">
-            <span>처음 방문하셨다면 먼저 버틸 앱에서 회원가입 해주세요.</span>
+            <span>버틸 앱과 같은 계정으로 로그인할 수 있어요.</span>
           </div>
         </section>
       </div>

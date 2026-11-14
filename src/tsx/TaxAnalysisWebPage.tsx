@@ -3,21 +3,28 @@ import DashboardHeader from "./DashboardHeader";
 import "../css/SimulationAnalysisWebPage.css";
 import "../css/TaxAnalysisWebPage.css";
 
+import { loadStoreTax } from "../api/butill";
+import { taxProfile, toTaxEvents } from "../api/mappers";
+import { useLoad } from "../api/useLoad";
 import {
   kindDescriptions,
   kindLabels,
   months,
   monthNames,
-  taxCalendarYear,
-  taxEvents,
   taxKinds,
   taxSourceLinks,
   type TaxKind,
 } from "../data/taxCalendar";
 
+const thisYear = new Date().getFullYear();
+
 export default function TaxAnalysisWebPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedKind, setSelectedKind] = useState<TaxKind | "all">("all");
+  const [state, reload] = useLoad(loadStoreTax);
+  const tax = state.status === "ready" ? state.data.tax : null;
+  const taxEvents = tax ? toTaxEvents(tax) : [];
+  const profile = tax ? taxProfile(tax) : null;
 
   useEffect(() => {
     document.title = "BUTILL | 연간 세금 관리";
@@ -35,7 +42,7 @@ export default function TaxAnalysisWebPage() {
       <div className="analysis-container tax-container">
         <section className="analysis-hero tax-hero">
           <div>
-            <span className="analysis-kicker">BUTILL TAX PLANNER · {taxCalendarYear}</span>
+            <span className="analysis-kicker">BUTILL TAX PLANNER · 다가오는 1년</span>
             <h1>일 년 세금 일정을 미리 확인하세요</h1>
             <p>
               사업자 유형과 직원 고용 정보를 기준으로 주요 신고·납부 일정을
@@ -43,25 +50,37 @@ export default function TaxAnalysisWebPage() {
             </p>
           </div>
           <span className="analysis-sample-tag">
-            <i /> 예시 프로필 기준
+            <i /> {tax?.saved ? "앱 세금 설정 기준" : "기본 설정 기준"}
           </span>
         </section>
 
-        <section className="tax-profile-strip" aria-label="적용한 예시 프로필">
+        <section className="tax-profile-strip" aria-label="적용한 세금 프로필">
           <div>
             <small>적용 프로필</small>
-            <strong>개인사업자 · 일반과세자</strong>
+            <strong>{profile?.title ?? "—"}</strong>
           </div>
-          <span>직원 있음</span>
-          <span>세무사 이용</span>
-          <p>앱에 입력한 사용자 정보와 연결되면 이 프로필이 자동 반영돼요.</p>
+          {profile?.tags.map((tag) => <span key={tag}>{tag}</span>)}
+          <p>
+            {state.status === "loading"
+              ? "세금 설정을 불러오는 중이에요."
+              : state.status === "error"
+                ? state.message
+                : !state.data.store
+                  ? "등록된 매장이 없어요. 매장을 먼저 등록해 주세요."
+                  : tax?.saved
+                    ? "버틸 앱에 입력한 세금 설정이 반영되었어요."
+                    : "앱에서 세금 설정을 저장하기 전이라 기본값(개인 일반과세자·직원 있음)으로 보여 줘요."}
+          </p>
+          {state.status === "error" && (
+            <button type="button" onClick={() => reload().catch(() => undefined)}>다시 시도</button>
+          )}
         </section>
 
         <section className="tax-summary-grid" aria-label="연간 일정 요약">
           <article>
-            <span>연간 주요 일정</span>
+            <span>1년 주요 일정</span>
             <strong>{taxEvents.length}건</strong>
-            <small>예시 프로필 기준</small>
+            <small>원천세는 매월 포함</small>
           </article>
           <article>
             <span>부가가치세</span>
@@ -81,7 +100,7 @@ export default function TaxAnalysisWebPage() {
           <div className="tax-section-heading">
             <div>
               <span className="analysis-kicker">ANNUAL TAX CALENDAR</span>
-              <h2>{taxCalendarYear}년 연간 세무 일정</h2>
+              <h2>다가오는 1년 세무 일정</h2>
             </div>
             <div className="tax-filters" role="group" aria-label="세목 필터">
               {taxKinds.map((kind) => (
@@ -170,7 +189,7 @@ export default function TaxAnalysisWebPage() {
                         {String(event.month).padStart(2, "0")}.
                         {String(event.day).padStart(2, "0")}
                       </b>
-                      <small>{taxCalendarYear}년</small>
+                      <small>{event.year ?? thisYear}년</small>
                     </div>
                     <div className="tax-event-description">
                       <span className={`tax-kind-tag ${event.kind}`}>
@@ -222,10 +241,9 @@ export default function TaxAnalysisWebPage() {
         <aside className="tax-notice">
           <strong>일정 안내</strong>
           <p>
-            이 화면은 {taxCalendarYear}년 국세청 세무일정을 바탕으로 만든 예시예요. 실제
-            신고·납부 기한과 대상 여부는 사업자 유형, 고지 여부, 휴일 등에 따라
-            달라질 수 있습니다. 앱 입력 정보와 세액 계산은 백엔드 연동 후
-            적용됩니다.
+            {tax?.basis ?? "세법상 기본 신고·납부 기한 기준 참고 일정입니다."} 실제
+            신고·납부 기한과 대상 여부는 사업자 유형, 고지 여부, 공휴일 등에 따라
+            달라질 수 있으니 국세청 안내를 함께 확인하세요.
           </p>
           <div>
             {taxSourceLinks.map((source) => (
@@ -242,7 +260,7 @@ export default function TaxAnalysisWebPage() {
         </aside>
         <footer className="analysis-footer">
           <span>BUTILL</span>
-          <span>앱 입력 정보 연동 전 예시 일정입니다.</span>
+          <span>세금 설정 기준 참고 일정이며 세액은 계산하지 않아요.</span>
         </footer>
       </div>
     </main>

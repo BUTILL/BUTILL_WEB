@@ -8,6 +8,7 @@ import "../css/Report.css";
 
 type ReportProps = DashboardHeaderProps & {
   data?: ReportData | null;
+  notice?: { title: string; message: string; action?: { label: string; onClick: () => void } } | null; // 데이터가 없을 때 안내
   refreshedAt?: string;
   onRefresh?: (analysisDate: string, requestedAt: string) => Promise<void>;
 };
@@ -197,7 +198,8 @@ function ReportPeriodPicker({
 
 export default function Report({
   data,
-    refreshedAt,
+  notice,
+  refreshedAt,
   onRefresh,
   ...headerProps
 }: ReportProps) {
@@ -320,6 +322,14 @@ export default function Report({
             </div>
           </dl>
         </div>
+
+        {notice && (
+          <section className="report-panel report-notice" role="status">
+            <h2 className="report-panel-title">{notice.title}</h2>
+            <p>{notice.message}</p>
+            {notice.action && <button type="button" onClick={notice.action.onClick}>{notice.action.label}</button>}
+          </section>
+        )}
 
         {/* 현금흐름 지표 */}
         <section className="report-panel" aria-labelledby="report-summary-title">

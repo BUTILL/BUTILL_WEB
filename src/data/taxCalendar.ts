@@ -1,5 +1,6 @@
 export type TaxKind = "vat" | "income" | "withholding";
 export type TaxEvent = {
+  year?: number;
   month: number;
   day: number;
   kind: TaxKind;

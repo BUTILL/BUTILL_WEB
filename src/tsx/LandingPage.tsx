@@ -78,7 +78,7 @@ export default function LandingPage({ showBack = false }: { showBack?: boolean }
               웹에서 복잡한 자금 흐름과 분석을 넓은 화면으로 살펴보세요.
             </p>
             <small className="landing-note">
-              현재는 예시 데이터 화면이며 실제 사용자 정보 연동은 준비 중이에요.
+              처음이라면 <a href="/signup">회원가입</a>하고 매장을 등록해 보세요. 앱과 같은 계정으로 로그인할 수 있어요.
             </small>
           </div>
 

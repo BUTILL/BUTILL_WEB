@@ -1,7 +1,7 @@
 import Logout from "./Logout";
 import "../css/Home.css";
 
-type DashboardPage = "home" | "report" | "simulation" | "rawMaterials" | "tax";
+type DashboardPage = "home" | "report" | "simulation" | "rawMaterials" | "tax" | "support";
 
 export type DashboardHeaderProps = {
   logoSrc?: string;
@@ -10,6 +10,7 @@ export type DashboardHeaderProps = {
   simulationHref?: string;
   rawMaterialsHref?: string;
   taxHref?: string;
+  supportHref?: string;
   notificationsHref?: string;
 };
 
@@ -22,6 +23,7 @@ export default function DashboardHeader({
   simulationHref = "/simulation",
   rawMaterialsHref = "/raw-materials",
   taxHref = "/tax",
+  supportHref = "/support",
 }: DashboardHeaderProps & { activePage: DashboardPage }) {
   const links = [
     { key: "home", href: dashboardHref, label: "현금흐름 분석" },
@@ -29,6 +31,7 @@ export default function DashboardHeader({
     { key: "simulation", href: simulationHref, label: "자금 시뮬레이션" },
     { key: "rawMaterials", href: rawMaterialsHref, label: "원재료비 분석" },
     { key: "tax", href: taxHref, label: "세금 관리" },
+    { key: "support", href: supportHref, label: "지원사업" },
   ];
 
   return (

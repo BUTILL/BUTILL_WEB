@@ -1,0 +1,97 @@
+/* 지원사업: 분석 화면 공통 스타일(SimulationAnalysisWebPage.css) 위에 목록 카드만 추가 */
+.support-web-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.support-web-filters button {
+  padding: 8px 14px;
+  border: 1px solid #dfe4ef;
+  border-radius: 999px;
+  background: #fff;
+  color: #48556f;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.support-web-filters button.active {
+  border-color: #1769d2;
+  background: #edf4ff;
+  color: #1769d2;
+  font-weight: 700;
+}
+.support-web-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.support-web-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid #e3e8f2;
+  border-radius: 16px;
+  background: #fff;
+}
+.support-web-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.support-web-card h3 {
+  margin: 0;
+  color: #17233a;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.support-web-badge {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #1769d2;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.support-web-badge.soon {
+  background: #fff0ef;
+  color: #d83c3c;
+}
+.support-web-badge.open {
+  background: #edf8f1;
+  color: #149447;
+}
+.support-web-meta {
+  margin: 0;
+  color: #5b6984;
+  font-size: 13px;
+}
+.support-web-summary {
+  margin: 0;
+  color: #48556f;
+  font-size: 13px;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.support-web-card a {
+  margin-top: auto;
+  color: #1769d2;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.support-web-empty {
+  padding: 32px;
+  border: 1px dashed #dfe4ef;
+  border-radius: 16px;
+  background: #fff;
+  color: #5b6984;
+  text-align: center;
+}

@@ -1,0 +1,71 @@
+import { ApiError, apiFetch } from "./client";
+import type {
+  Analysis, Comparison, Finances, IngredientCosts, IngredientPrices, Store, SupportPrograms, TaxSettings,
+} from "./types";
+
+export const OPTIMISTIC = { name: "낙관", sales_change_bps: 1500 };
+export const PESSIMISTIC = { name: "비관", sales_change_bps: -1500, ingredient_change_bps: 800 };
+
+// 한 계정의 첫 번째 매장을 웹 분석 대상으로 사용
+export async function getCurrentStore(): Promise<Store | null> {
+  const stores = await apiFetch<Store[]>("/api/v1/stores?limit=1");
+  return stores[0] ?? null;
+}
+
+export async function createStore(store: Omit<Store, "id">): Promise<Store> {
+  return apiFetch<Store>("/api/v1/stores", { method: "POST", body: store });
+}
+
+export async function getFinances(storeId: string): Promise<Finances | null> {
+  try {
+    return await apiFetch<Finances>(`/api/v1/stores/${storeId}/finances`);
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "NOT_FOUND") return null;
+    throw error;
+  }
+}
+
+export type StoreAnalysis = { store: Store | null; finances: Finances | null; analysis: Analysis | null };
+
+// 저장된 경영정보로 계산만 하고 이력은 남기지 않는다(미리보기)
+export async function loadStoreAnalysis(): Promise<StoreAnalysis> {
+  const store = await getCurrentStore();
+  if (!store) return { store, finances: null, analysis: null };
+  const finances = await getFinances(store.id);
+  if (!finances) return { store, finances, analysis: null };
+  const analysis = await apiFetch<Analysis>("/api/v1/analyses/preview", { method: "POST", body: finances.input, auth: false });
+  return { store, finances, analysis };
+}
+
+export async function compareScenarios(finances: Finances): Promise<Comparison> {
+  return apiFetch<Comparison>("/api/v1/scenarios/compare", {
+    method: "POST", auth: false, body: { base: finances.input, scenarios: [OPTIMISTIC, PESSIMISTIC] },
+  });
+}
+
+export type StoreComparison = { store: Store | null; comparison: Comparison | null };
+
+export async function loadStoreComparison(): Promise<StoreComparison> {
+  const store = await getCurrentStore();
+  const finances = store ? await getFinances(store.id) : null;
+  return { store, comparison: finances ? await compareScenarios(finances) : null };
+}
+
+export const getIngredientPrices = () => apiFetch<IngredientPrices>("/api/v1/ingredient-prices", { auth: false });
+
+export type RawMaterialData = { prices: IngredientPrices; costs: IngredientCosts | null };
+
+// 매장 원재료 단가(월 지출 영향)는 없어도 시세는 보여 준다
+export async function loadRawMaterials(): Promise<RawMaterialData> {
+  const [prices, store] = await Promise.all([getIngredientPrices(), getCurrentStore()]);
+  const costs = store ? await getIngredientCosts(store.id).catch(() => null) : null;
+  return { prices, costs };
+}
+export const getIngredientCosts = (storeId: string) => apiFetch<IngredientCosts>(`/api/v1/stores/${storeId}/ingredient-costs`);
+export const getTaxSettings = (storeId: string) => apiFetch<TaxSettings>(`/api/v1/stores/${storeId}/tax-settings`);
+
+export async function loadStoreTax(): Promise<{ store: Store | null; tax: TaxSettings | null }> {
+  const store = await getCurrentStore();
+  return { store, tax: store ? await getTaxSettings(store.id) : null };
+}
+export const getSupportPrograms = () => apiFetch<SupportPrograms>("/api/v1/support-programs", { auth: false });

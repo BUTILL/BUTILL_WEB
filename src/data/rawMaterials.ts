@@ -9,6 +9,8 @@ export type RawItem = {
   type: "up" | "down" | "steady";
   source: string;
   dailyPrices: number[];
+  bps?: number; // 1주 전 대비 변동률(1/10000)
+  dailyDates?: string[]; // dailyPrices와 같은 순서의 조사일(YYYY-MM-DD). 주말·공휴일은 조사하지 않음
 };
 
 // 시연용 가격이며 실시간 KAMIS 데이터가 아닙니다.

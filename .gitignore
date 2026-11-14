@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# 환경변수 (키 이름만 .env.example에 적는다)
+.env
+.env.*
+!.env.example
+
+# 브라우저 테스트 결과물
+test-results
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

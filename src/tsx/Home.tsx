@@ -8,11 +8,13 @@ import type { DashboardHeaderProps } from "./DashboardHeader";
 // API 응답 또는 상위 화면의 데이터를 전달하면 그래프와 카드가 함께 갱신
 type HomeProps = DashboardHeaderProps & {
   data?: DashboardData | null;
+  notice?: { title: string; message: string; action?: { label: string; onClick: () => void } } | null; // 데이터가 없을 때 안내
 };
 
 // 대시보드 전체 화면: data는 백엔드 응답 또는 상위 컴포넌트에서 전달
 export default function Home({
   data,
+  notice,
   ...headerProps
 }: HomeProps) {
   const rows = useMemo(() => buildCashFlowRows(data), [data]);
@@ -60,8 +62,11 @@ export default function Home({
         {!rows ? ( 
           <section className="dashboard-panel dashboard-empty" role="status">
             {/* 데이터 없으면 나타나는 메시지 */}
-            <h2>현금흐름 데이터를 확인해 주세요</h2>
-            <p>앱 사용 시작 월, 시작 잔액과 월별 수입·지출 데이터가 필요합니다.</p>
+            <h2>{notice?.title ?? "현금흐름 데이터를 확인해 주세요"}</h2>
+            <p>{notice?.message ?? "앱 사용 시작 월, 시작 잔액과 월별 수입·지출 데이터가 필요합니다."}</p>
+            {notice?.action && (
+              <button type="button" className="dashboard-retry" onClick={notice.action.onClick}>{notice.action.label}</button>
+            )}
           </section>
         ) : (
           <section className="dashboard-workspace" aria-label="현금흐름 분석">

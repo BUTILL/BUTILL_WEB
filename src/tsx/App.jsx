@@ -1,31 +1,35 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Home from "./Home";
 import Report from "./Report";
 import LandingPage from "./LandingPage";
 import LoginPage from "./LoginPage";
+import SignupPage from "./SignupPage";
 import SimulationAnalysisWebPage from "./SimulationAnalysisWebPage";
 import RawMaterialsAnalysisWebPage from "./RawMaterialsAnalysisWebPage";
 import TaxAnalysisWebPage from "./TaxAnalysisWebPage";
-import { sampleDashboardData } from "../data/homeSample";
-import { sampleReportData } from "../data/reportSample";
+import SupportProgramsWebPage from "./SupportProgramsWebPage";
+import { loadStoreAnalysis } from "../api/butill";
+import { toDashboard, toReport } from "../api/mappers";
+import { useLoad } from "../api/useLoad";
 import { hasWebSession } from "../data/webSession";
 import "../css/App.css";
 import "../css/DeliveredPages.css";
 
-// 전달받은 화면을 기존 메뉴의 URL에 연결합니다.
+// 메뉴 URL과 화면 연결. 각 화면은 로그인한 계정의 첫 번째 매장 데이터를 불러옵니다.
 const pages = new Map([
   ["/login", LoginPage],
+  ["/signup", SignupPage],
   ["/simulation", SimulationAnalysisWebPage],
   ["/raw-materials", RawMaterialsAnalysisWebPage],
   ["/tax", TaxAnalysisWebPage],
+  ["/support", SupportProgramsWebPage],
 ]);
+const publicPaths = new Set(["", "/intro", "/login", "/signup"]);
 
-// API 연결 전에는 분리한 예시 데이터로 화면을 확인합니다.
-// API 연결 후에는 서버 응답을 data에 전달하면 같은 화면이 갱신됩니다.
 export default function App() {
   // 주소 끝에 슬래시가 붙어도 같은 화면을 표시합니다.
   const path = window.location.pathname.replace(/\/+$/, "");
-  const publicPage = path === "" || path === "/intro" || path === "/login";
+  const publicPage = publicPaths.has(path);
   const needsLogin = !publicPage && !hasWebSession();
 
   // 로그아웃 후 뒤로가기로 캐시된 분석 화면을 열어도 로그인 화면으로 이동합니다.
@@ -46,7 +50,7 @@ export default function App() {
   }
 
   if (path === "/report") {
-    return <ReportPreview />;
+    return <ReportPage />;
   }
 
   const Page = pages.get(path);
@@ -54,51 +58,59 @@ export default function App() {
     return <Page />;
   }
 
-  return <Home data={sampleDashboardData} />;
+  return <HomePage />;
 }
 
-
-
-// 같은 브라우저에서 다시 열어도 마지막 새로고침 시각을 유지
-const reportRefreshKey = "butill:report-preview:last-refresh";
-
-function readReportRefresh() {
-  try {
-    const refresh = JSON.parse(localStorage.getItem(reportRefreshKey));
-    if (
-      typeof refresh?.analysisDate === "string" &&
-      typeof refresh.requestedAt === "string" &&
-      Number.isFinite(Date.parse(refresh.requestedAt))
-    ) {
-      return refresh;
-    }
-  } catch {
-    // 저장소를 사용할 수 없으면 초기 예시 데이터로 표시
-  }
+// 매장·경영정보가 없거나 불러오지 못했을 때 화면에 보여 줄 안내
+function analysisNotice(state, retry) {
+  if (state.status === "loading") return { title: "현금흐름을 불러오는 중이에요", message: "잠시만 기다려 주세요." };
+  if (state.status === "error") return { title: "현금흐름을 불러오지 못했어요", message: state.message, action: { label: "다시 시도", onClick: retry } };
+  if (!state.data.store) return { title: "등록된 매장이 없어요", message: "회원가입 화면 또는 버틸 앱에서 매장을 먼저 등록해 주세요." };
+  if (!state.data.analysis) return { title: "경영정보를 먼저 입력해 주세요", message: `${state.data.store.name}의 보유자금, 매출, 비용을 버틸 앱에서 입력하면 분석 결과가 표시돼요.` };
   return null;
 }
 
-function ReportPreview() {
-  const [lastRefresh, setLastRefresh] = useState(readReportRefresh);
-  const reportData = lastRefresh
-    ? { ...sampleReportData, analysisDate: lastRefresh.analysisDate }
-    : sampleReportData;
+function HomePage() {
+  const [state, reload] = useLoad(loadStoreAnalysis);
+  const analysis = state.status === "ready" ? state.data.analysis : null;
+  const notice = analysisNotice(state, () => reload().catch(() => undefined));
+  return <Home data={analysis ? toDashboard(analysis) : null} notice={notice} />;
+}
 
-  // 백엔드 연결 시 기준일로 API를 조회하고, 성공한 응답과 갱신 시각을 화면에 전달
-  async function refreshReport(analysisDate, requestedAt) {
-    const refresh = { analysisDate, requestedAt };
-    setLastRefresh(refresh);
+// 같은 브라우저에서 다시 열어도 마지막 새로고침 시각을 유지
+const reportRefreshKey = "butill:report:last-refresh";
+
+function readReportRefresh() {
+  try {
+    const refresh = localStorage.getItem(reportRefreshKey);
+    return refresh && Number.isFinite(Date.parse(refresh)) ? refresh : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function ReportPage() {
+  const [state, reload] = useLoad(loadStoreAnalysis);
+  const [refreshedAt, setRefreshedAt] = useState(readReportRefresh);
+  const analysis = state.status === "ready" ? state.data.analysis : null;
+
+  // 새로고침: 저장된 경영정보로 다시 계산하고, 성공한 시각을 화면에 전달
+  const refreshReport = useCallback(async (_analysisDate, requestedAt) => {
+    await reload();
+    setRefreshedAt(requestedAt);
     try {
-      localStorage.setItem(reportRefreshKey, JSON.stringify(refresh));
+      localStorage.setItem(reportRefreshKey, requestedAt);
     } catch {
       // 저장소를 사용할 수 없어도 현재 화면에는 갱신 결과를 표시
     }
-  }
+  }, [reload]);
 
+  const notice = analysisNotice(state, () => reload().catch(() => undefined));
   return (
     <Report
-      data={reportData}
-      refreshedAt={lastRefresh?.requestedAt}
+      data={analysis ? toReport(analysis) : null}
+      notice={notice}
+      refreshedAt={refreshedAt}
       onRefresh={refreshReport}
     />
   );
