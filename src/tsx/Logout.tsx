@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { isDemo } from "../data/demo";
 import { clearWebSession } from "../data/webSession";
 import logoutIcon from "../assets/Logout_icon.png";
 import "../css/Logout.css";
@@ -6,6 +7,7 @@ import "../css/Logout.css";
 export default function Logout() {
   const [open, setOpen] = useState(false);
   const [loggedOut, setLoggedOut] = useState(false);
+  const [demo] = useState(isDemo);
   const popupId = useId();
   const profileButton = useRef<HTMLButtonElement>(null);
   const redirectTimer = useRef<number | undefined>(undefined);
@@ -52,10 +54,10 @@ export default function Logout() {
       <div id={popupId} className="logout-popup" hidden={!open}>
         <button className="logout-action" type="button" disabled={loggedOut} onClick={handleLogout}>
           <img src={logoutIcon} alt="" width={25} height={25} />
-          로그아웃
+          {demo ? "체험 끝내기" : "로그아웃"}
         </button>
         <div className="logout-status" role="status">
-          {loggedOut && "로그아웃이 되었습니다"}
+          {loggedOut && (demo ? "체험을 종료했어요" : "로그아웃이 되었습니다")}
         </div>
       </div>
     </div>

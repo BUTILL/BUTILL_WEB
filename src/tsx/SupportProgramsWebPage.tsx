@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { getSupportPrograms } from "../api/butill";
 import { todayKst } from "../api/mappers";
-import type { SupportProgram } from "../api/types";
-import { useLoad } from "../api/useLoad";
+import type { SupportProgram, SupportPrograms } from "../api/types";
+import { loadNothing, useLoad } from "../api/useLoad";
+import { isDemo } from "../data/demo";
 import DashboardHeader from "./DashboardHeader";
 import "../css/SimulationAnalysisWebPage.css";
 import "../css/SupportProgramsWebPage.css";
@@ -16,10 +17,11 @@ function daysLeft(program: SupportProgram, today: string) {
 
 // 기업마당 공고 중 서울 소상공인 대상, 마감 전 공고만 백엔드에서 받아 마감 임박 순으로 보여 줍니다.
 export default function SupportProgramsWebPage() {
-  const [state, reload] = useLoad(getSupportPrograms);
+  const demo = isDemo();
+  const [state, reload] = useLoad<SupportPrograms | null>(demo ? loadNothing : getSupportPrograms);
   const [filter, setFilter] = useState<Filter>("all");
   const today = todayKst();
-  const programs = state.status === "ready" ? state.data.programs : [];
+  const programs = state.status === "ready" ? state.data?.programs ?? [] : [];
   const soonCount = programs.filter((p) => (daysLeft(p, today) ?? Infinity) <= SOON_DAYS).length;
   const openCount = programs.filter((p) => p.always_open).length;
   const visible = programs.filter((p) =>
@@ -71,13 +73,18 @@ export default function SupportProgramsWebPage() {
           ))}
         </div>
 
-        {state.status !== "ready" ? (
+        {demo ? (
+          <div className="support-web-empty" role="status">
+            <p>체험 모드에서는 실제 지원사업 공고를 불러오지 않아요. 최신 공고는 기업마당에서 확인할 수 있어요.</p>
+            <a href="https://www.bizinfo.go.kr" target="_blank" rel="noreferrer">기업마당 지원사업 공고 보기 ↗</a>
+          </div>
+        ) : state.status !== "ready" ? (
           <div className="support-web-empty" role="status">
             <p>{state.status === "loading" ? "지원사업 공고를 불러오는 중이에요." : state.message}</p>
             {state.status === "error" && <button type="button" onClick={() => reload().catch(() => undefined)}>다시 시도</button>}
           </div>
         ) : visible.length === 0 ? (
-          <div className="support-web-empty">{state.data.status === "failed" ? "지원사업 정보를 받아오지 못했어요. 잠시 후 다시 확인해 주세요." : "조건에 맞는 공고가 없어요."}</div>
+          <div className="support-web-empty">{state.data?.status === "failed" ? "지원사업 정보를 받아오지 못했어요. 잠시 후 다시 확인해 주세요." : "조건에 맞는 공고가 없어요."}</div>
         ) : (
           <section className="support-web-list">
             {visible.map((program) => {

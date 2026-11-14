@@ -1,7 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabaseConfigured } from "../api/supabase";
+import { demoOnly, enterDemo } from "../data/demo";
 import { signIn } from "../data/webSession";
 import "../css/LoginPage.css";
+
+const loginAvailable = supabaseConfigured && !demoOnly;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -108,17 +111,24 @@ export default function LoginPage() {
               </button>
             </div>
 
-            <button className="web-login-submit" type="submit" disabled={submitting || !supabaseConfigured}>
+            <button className="web-login-submit" type="submit" disabled={submitting || !loginAvailable}>
               {submitting ? "로그인 중…" : "로그인"} <span aria-hidden="true">→</span>
             </button>
           </form>
 
           <p className="web-login-notice" aria-live="polite">
-            {notice || (supabaseConfigured ? "" : "로그인 설정(VITE_SUPABASE_URL 등)이 없어 로그인할 수 없어요.")}
+            {notice || (demoOnly
+              ? "지금은 로그인 없이 체험 모드로만 둘러볼 수 있어요."
+              : supabaseConfigured ? "" : "로그인 설정(VITE_SUPABASE_URL 등)이 없어 로그인할 수 없어요.")}
           </p>
-          <a className="web-login-demo-link" href="/signup">
-            처음이신가요? 회원가입 <span aria-hidden="true">→</span>
-          </a>
+          <button className="web-login-demo-link" type="button" onClick={enterDemo}>
+            로그인 없이 둘러보기 <span aria-hidden="true">→</span>
+          </button>
+          {!demoOnly && (
+            <a className="web-login-demo-link" href="/signup">
+              처음이신가요? 회원가입 <span aria-hidden="true">→</span>
+            </a>
+          )}
           <div className="web-login-footer">
             <span>버틸 앱과 같은 계정으로 로그인할 수 있어요.</span>
           </div>

@@ -5,26 +5,34 @@ import "../css/TaxAnalysisWebPage.css";
 
 import { loadStoreTax } from "../api/butill";
 import { taxProfile, toTaxEvents } from "../api/mappers";
-import { useLoad } from "../api/useLoad";
+import type { Store, TaxSettings } from "../api/types";
+import { loadNothing, useLoad } from "../api/useLoad";
+import { isDemo } from "../data/demo";
 import {
   kindDescriptions,
   kindLabels,
   months,
   monthNames,
+  taxCalendarYear,
+  taxEvents as sampleTaxEvents,
   taxKinds,
   taxSourceLinks,
   type TaxKind,
 } from "../data/taxCalendar";
 
 const thisYear = new Date().getFullYear();
+const demoProfile = { title: "개인사업자 · 일반과세자", tags: ["직원 있음", "세무사 이용"] };
 
 export default function TaxAnalysisWebPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedKind, setSelectedKind] = useState<TaxKind | "all">("all");
-  const [state, reload] = useLoad(loadStoreTax);
-  const tax = state.status === "ready" ? state.data.tax : null;
-  const taxEvents = tax ? toTaxEvents(tax) : [];
-  const profile = tax ? taxProfile(tax) : null;
+  const demo = isDemo();
+  const [state, reload] = useLoad<{ store: Store | null; tax: TaxSettings | null } | null>(demo ? loadNothing : loadStoreTax);
+  const tax = state.status === "ready" ? state.data?.tax ?? null : null;
+  const taxEvents = demo
+    ? sampleTaxEvents.map((event) => ({ ...event, year: taxCalendarYear }))
+    : tax ? toTaxEvents(tax) : [];
+  const profile = demo ? demoProfile : tax ? taxProfile(tax) : null;
 
   useEffect(() => {
     document.title = "BUTILL | 연간 세금 관리";
@@ -50,7 +58,7 @@ export default function TaxAnalysisWebPage() {
             </p>
           </div>
           <span className="analysis-sample-tag">
-            <i /> {tax?.saved ? "앱 세금 설정 기준" : "기본 설정 기준"}
+            <i /> {demo ? "체험용 예시 프로필" : tax?.saved ? "앱 세금 설정 기준" : "기본 설정 기준"}
           </span>
         </section>
 
@@ -61,11 +69,13 @@ export default function TaxAnalysisWebPage() {
           </div>
           {profile?.tags.map((tag) => <span key={tag}>{tag}</span>)}
           <p>
-            {state.status === "loading"
+            {demo
+              ? `체험 모드에서는 ${taxCalendarYear}년 국세청 세무일정을 바탕으로 한 예시 일정을 보여 줘요.`
+              : state.status === "loading"
               ? "세금 설정을 불러오는 중이에요."
               : state.status === "error"
                 ? state.message
-                : !state.data.store
+                : !state.data?.store
                   ? "등록된 매장이 없어요. 매장을 먼저 등록해 주세요."
                   : tax?.saved
                     ? "버틸 앱에 입력한 세금 설정이 반영되었어요."
