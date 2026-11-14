@@ -1,0 +1,584 @@
+/* 홈 화면처럼 세로 스크롤바 자리를 확보해 상단바 아이콘 위치를 맞춤 */
+html:has(.report-page) {
+  scrollbar-gutter: stable;
+}
+
+/* 홈 화면과 공통으로 사용하는 색상 */
+.report-page {
+  --report-text: #17233a;
+  --report-heading: #14213a;
+  --report-muted: #5f6778;
+  --report-blue: #1769d2;
+  --report-focus: #2563eb;
+  --report-line: #e8edf6;
+  --report-tint: #f0f3fb;
+  min-height: 100vh;
+  background: #f7f8fc;
+  color: var(--report-text);
+}
+
+.report-page,
+.report-page * {
+  box-sizing: border-box;
+}
+
+.report-page :is(h1, h2, h3, p, dl, dd, ol) {
+  margin: 0;
+}
+
+.report-page :is(a, button):focus-visible {
+  outline: 3px solid var(--report-focus);
+  outline-offset: 3px;
+}
+
+.report-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* 보고서 제목과 분석 기간 */
+.report-intro {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 20px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  padding-top: 12px;
+}
+
+.report-intro h1 {
+  color: var(--report-heading);
+  font-size: clamp(25px, 3vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -.04em;
+}
+
+.report-intro p {
+  margin-top: 8px;
+  font-size: 15px;
+}
+
+.report-dates {
+  display: grid;
+  padding-top: 3px;
+  font-size: 15px;
+}
+
+.report-date-row,
+.report-date-row :is(dt, dd) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-date-row:first-child dt {
+  padding-left: 30px;
+}
+
+.report-date-row dd {
+  font-weight: 700;
+}
+
+.report-date-row .report-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--report-blue);
+}
+
+.report-date-row button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.report-date-row button:enabled:hover {
+  background: var(--report-tint);
+}
+
+.report-date-row button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.report-date-row:first-child dd {
+  flex-wrap: wrap;
+}
+
+.report-date-row:first-child dt,
+.report-date-row button {
+  flex-shrink: 0;
+}
+
+/* 날짜 텍스트와 새로고침·달력 버튼 사이 간격 */
+.report-refresh-action {
+  position: relative;
+  flex: none;
+  margin-inline-start: -5px;
+}
+
+.report-date-row .report-calendar {
+  margin-inline-end: -5px;
+}
+
+/* 시각과 상태 문구가 바뀌어도 버튼과 날짜 행의 위치를 유지 */
+.report-analysis-date {
+  display: inline-flex;
+  gap: .3em;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-analysis-time[data-placeholder="true"] {
+  visibility: hidden;
+}
+
+.report-refresh-status {
+  position: absolute;
+  inset-inline-start: calc(100% + 4px);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  width: max-content;
+  white-space: nowrap;
+  line-height: 1.2;
+  color: var(--report-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 좁은 화면에서는 상태 문구를 줄바꿈해 화면 안에 표시 */
+@media (max-width: 480px) {
+  .report-refresh-status {
+    max-width: 4em;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 360px) {
+  .report-refresh-status {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+    inset-block-start: calc(100% + 2px);
+    transform: none;
+    max-width: 8em;
+    padding: 2px 4px;
+    background: #fff;
+    z-index: 1;
+  }
+
+  .report-refresh-status:empty {
+    padding: 0;
+  }
+}
+
+/* 분석 대상 기간 선택 달력 */
+.report-calendar {
+  position: relative;
+  display: inline-flex;
+}
+
+.report-date-row .report-calendar-trigger {
+  width: 24px;
+  height: 28px;
+}
+
+.report-calendar-popover {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 6px;
+  width: 216px;
+  padding: 10px;
+  border: 1px solid var(--report-line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 4px 16px #17233a20;
+  font-size: 12px;
+}
+
+.report-calendar-month {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  text-align: center;
+}
+
+.report-date-row .report-calendar-popover button {
+  width: 100%;
+  height: 24px;
+  color: var(--report-text);
+  font: inherit;
+}
+
+.report-date-row .report-calendar-month button {
+  width: 24px;
+  font-size: 18px;
+}
+
+.report-date-row button.report-calendar-early {
+  opacity: .45;
+}
+
+.report-date-row .report-calendar-grid button[aria-pressed="true"] {
+  background: var(--report-blue);
+  color: #fff;
+}
+
+.report-calendar-hint {
+  color: var(--report-muted);
+}
+
+.report-calendar-warning {
+  color: #c53b3b;
+}
+
+/* 공통 카드와 현금흐름 요약 */
+.report-panel {
+  padding: 23px;
+  border: 1px solid var(--report-line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.report-panel + .report-panel {
+  margin-top: 18px;
+}
+
+.report-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--report-heading);
+  font-size: 25px;
+  line-height: 1.2;
+  letter-spacing: -.04em;
+}
+
+.report-panel-title::before {
+  width: 11px;
+  height: .96em;
+  border-radius: 8px;
+  background: var(--report-focus);
+  content: "";
+}
+
+.report-summary,
+.report-risks {
+  display: grid;
+  gap: 20px;
+  margin-top: 18px;
+}
+
+.report-summary {
+  grid-template-columns: minmax(0, 1.24fr) minmax(0, 1fr);
+}
+
+.report-summary-primary {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  align-items: stretch;
+  padding: 24px 0;
+  border-radius: 20px;
+  background: var(--report-tint);
+}
+
+.report-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 9px;
+}
+
+.report-summary-primary .report-metric {
+  grid-row: 1 / span 3;
+  grid-template-rows: subgrid;
+  padding-inline: 20px;
+}
+
+.report-summary-primary .report-metric-cash {
+  grid-template-rows: none;
+  align-content: start;
+  row-gap: 4.5px;
+  border-left: 1px solid var(--report-line);
+}
+
+.report-metric-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--report-heading);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.report-metric-icon {
+  display: grid;
+  width: 36px;
+  aspect-ratio: 1;
+  flex: none;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--report-tint);
+  color: var(--report-blue);
+}
+
+.report-summary-primary .report-metric-icon {
+  background: var(--report-line);
+}
+
+.report-metric-icon .report-icon {
+  width: 66%;
+  height: 66%;
+}
+
+.report-metric-value {
+  color: var(--report-heading);
+  font-size: clamp(23px, 2.5vw, 32px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -.035em;
+}
+
+.report-summary-primary .report-metric-value {
+  padding-left: 48px;
+  align-self: baseline;
+}
+
+
+.report-metric-runway .report-metric-value {
+  color: var(--report-blue);
+  font-size: clamp(30px, 3.5vw, 37px);
+}
+
+.report-metric-description{
+  color: var(--report-muted);
+  font-size: 13px;
+}
+
+.report-risk-count p:last-child,
+.report-risk-row p {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.report-summary-secondary {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+
+.report-summary-secondary .report-metric {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 0;
+  padding-block: 14px;
+}
+
+.report-summary-secondary .report-metric-label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.report-summary-secondary .report-metric-value {
+  /* 두 지표의 금액만 왼쪽으로 이동 */
+  translate: -30px 0;
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 25px;
+}
+
+.report-summary-secondary .report-metric-description {
+  padding-left: 48px;
+}
+
+.report-metric-shortfall {
+  border-bottom: 1px solid var(--report-line);
+}
+
+/* 예상 부족 금액: 기본 글자색, 음수 강조, 양수 안내 문구 */
+.report-metric-shortfall .report-metric-value {
+  color: #000;
+}
+
+.report-metric-shortfall.is-negative .report-metric-value,
+.report-metric-net.is-negative .report-metric-value {
+  color: #c53b3b;
+}
+
+.report-metric-shortfall.is-positive .report-metric-value {
+  max-width: 11rem;
+  font-size: 14px;
+  line-height: 1.4;
+  translate: none;
+}
+
+/* 위험 분석: 감지 개수와 주요 원인 목록 */
+.report-risks {
+  grid-template-columns: minmax(0, .43fr) minmax(0, 1fr);
+}
+
+.report-risk-count {
+  color: var(--report-muted);
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-height: 208px;
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--report-tint);
+}
+
+.report-risks h3 {
+  color: var(--report-heading);
+  font-size: 21px;
+  letter-spacing: -.03em;
+}
+
+.report-risk-count-value {
+  color: var(--report-blue);
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.report-risk-count-value span {
+  margin-left: 4px;
+  font-size: .7em;
+}
+
+.report-risk-ranking {
+  padding-left: clamp(16px, 2vw, 30px);
+  border-left: 1px solid var(--report-line);
+}
+
+.report-risk-list {
+  padding: 7px 0 0;
+  list-style: none;
+}
+
+.report-risk-row {
+  display: grid;
+  grid-template-columns: 40px 180px minmax(0, 1fr);
+  align-items: center;
+  min-height: 60px;
+  padding: 12px 8px;
+}
+
+.report-risk-row + .report-risk-row {
+  border-top: 1px solid var(--report-line);
+}
+
+.report-risk-row strong {
+  padding-left: clamp(12px, 1.65vw, 20px);
+  font-size: 18px;
+}
+
+.report-risk-rank {
+  width: 36px;
+  padding-block: 4px;
+  border-radius: 10px;
+  background: var(--report-tint);
+  color: var(--report-blue);
+  font-size: 19px;
+  font-weight: 800;
+  text-align: center;
+}
+
+
+/* 좁은 화면에서는 카드와 제목을 위아래로 배치 */
+@media (max-width: 900px) {
+  .report-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .report-intro {
+    flex-wrap: wrap;
+    padding-inline: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .report-risks {
+    grid-template-columns: 1fr;
+  }
+
+  .report-risk-count {
+    min-height: 0;
+  }
+
+  .report-risk-ranking {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .report-summary-primary {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding-block: 20px;
+  }
+
+  .report-summary-primary .report-metric {
+    grid-row: auto;
+    grid-template-rows: none;
+  }
+
+  .report-summary-primary .report-metric-cash {
+    padding-top: 18px;
+    border-top: 1px solid var(--report-line);
+    border-left: 0;
+  }
+
+  .report-summary-secondary .report-metric {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .report-summary-secondary .report-metric-value {
+    grid-column: 1;
+    grid-row: auto;
+    padding-left: 48px;
+  }
+
+  .report-risk-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+    padding-inline: 0;
+  }
+
+  .report-risk-rank {
+    width: 42px;
+  }
+
+  .report-risk-row p {
+    grid-column: 2;
+    padding-left: 12px;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-panel {
+    padding: 17px 14px;
+  }
+
+  .report-intro p {
+    font-size: 13px;
+  }
+
+  .report-date-row dd {
+    min-width: 0;
+  }
+}

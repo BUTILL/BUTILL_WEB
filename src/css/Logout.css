@@ -1,0 +1,80 @@
+/* 프로필 아래에 표시되는 로그아웃 말풍선 */
+.logout {
+  position: relative;
+}
+
+.logout-profile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #17233a;
+  cursor: pointer;
+}
+
+.logout-profile:hover,
+.logout-profile[aria-expanded="true"] {
+  background: #f0f3fb;
+}
+
+.logout-popup {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: max-content;
+  padding: 6px;
+  border: 1px solid #dfe5f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 22px #17233a1a;
+}
+
+.logout-popup::before {
+  position: absolute;
+  top: -6px;
+  right: 14px;
+  width: 15px;
+  height: 15px;
+  border-top: 1px solid #dfe5f0;
+  border-left: 1px solid #dfe5f0;
+  background: #fff;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.logout-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #17233a;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.logout-action:hover:enabled {
+  background: #f0f3fb;
+}
+
+.logout button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.logout-status:not(:empty) {
+  padding: 4px 8px 8px;
+  color: #203f8c;
+  font-size: 13px;
+  white-space: nowrap;
+}
