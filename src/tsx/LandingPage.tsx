@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { demoOnly, enterDemo } from "../data/demo";
 import "../css/LandingPage.css";
 
 const features = [
@@ -57,11 +58,15 @@ export default function LandingPage({ showBack = false }: { showBack?: boolean }
         <span className={showBack ? "landing-brand" : "dashboard-logo"}>
           <img src="/figma/brand-source.png" alt="BUTILL" />
         </span>
-        {!showBack && (
+        {!showBack && (demoOnly ? (
+          <a className="landing-login-link" href="/home" onClick={(event) => { event.preventDefault(); enterDemo(); }}>
+            둘러보기 <span aria-hidden="true">→</span>
+          </a>
+        ) : (
           <a className="landing-login-link" href="/login">
             로그인 <span aria-hidden="true">→</span>
           </a>
-        )}
+        ))}
       </header>
 
       <div className="landing-content">
@@ -78,7 +83,8 @@ export default function LandingPage({ showBack = false }: { showBack?: boolean }
               웹에서 복잡한 자금 흐름과 분석을 넓은 화면으로 살펴보세요.
             </p>
             <small className="landing-note">
-              처음이라면 <a href="/signup">회원가입</a>하고 매장을 등록해 보세요. 앱과 같은 계정으로 로그인할 수 있어요.
+              {demoOnly ? "지금은 예시 데이터로 모든 화면을 둘러볼 수 있어요. " : <>처음이라면 <a href="/signup">회원가입</a>하고 매장을 등록해 보세요. </>}
+              <a href="/home" onClick={(event) => { event.preventDefault(); enterDemo(); }}>로그인 없이 둘러보기 →</a>
             </small>
           </div>
 

@@ -1,12 +1,17 @@
 import { useEffect } from "react";
-import { loadRawMaterials } from "../api/butill";
+import { loadRawMaterials, type RawMaterialData } from "../api/butill";
 import { toRawItems } from "../api/mappers";
-import { useLoad } from "../api/useLoad";
+import { loadNothing, useLoad } from "../api/useLoad";
+import { isDemo } from "../data/demo";
 import DashboardHeader from "./DashboardHeader";
 import "../css/SimulationAnalysisWebPage.css";
 import "../css/RawMaterialsAnalysisWebPage.css";
 
-import type { RawItem } from "../data/rawMaterials";
+import { rawMaterialItems, type RawItem } from "../data/rawMaterials";
+
+// 체험 모드 예시 품목에는 bps가 없어 표시용 변동률 문자열에서 계산
+const withBps = (item: RawItem): RawItem => ({ ...item, bps: item.bps ?? Math.round(parseFloat(item.change) * 100) });
+const demoWeekLabels = ["4주 전", "3주 전", "2주 전", "1주 전", "이번 주"];
 
 const formatPrice = (price: number) => "₩" + price.toLocaleString("ko-KR");
 const shortDate = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
@@ -16,7 +21,9 @@ function PriceTrend({ item }: { item: RawItem }) {
   const lastIndex = Math.max(1, item.dailyPrices.length - 1);
   const chartX = (index: number) => 24 + (index * 232) / lastIndex;
   const weekTickIndexes = [...new Set([0, 0.25, 0.5, 0.75, 1].map((r) => Math.round(r * lastIndex)))];
-  const weekLabels = weekTickIndexes.map((index) => item.dailyDates?.[index] ? shortDate(item.dailyDates[index]) : "");
+  const weekLabels = item.dailyDates
+    ? weekTickIndexes.map((index) => item.dailyDates?.[index] ? shortDate(item.dailyDates[index]) : "")
+    : demoWeekLabels;
   const min = Math.min(...item.dailyPrices) * 0.96;
   const max = Math.max(...item.dailyPrices) * 1.04;
   const points = item.dailyPrices.map((price, index) => ({
@@ -81,12 +88,15 @@ function PriceTrend({ item }: { item: RawItem }) {
 }
 
 export default function RawMaterialsAnalysisWebPage() {
-  const [state, reload] = useLoad(loadRawMaterials);
-  const items = state.status === "ready" ? toRawItems(state.data.prices, state.data.costs) : [];
+  const demo = isDemo();
+  const [state, reload] = useLoad<RawMaterialData | null>(demo ? loadNothing : loadRawMaterials);
+  const items = demo
+    ? rawMaterialItems.map(withBps)
+    : state.status === "ready" && state.data ? toRawItems(state.data.prices, state.data.costs) : [];
   const risingCount = items.filter((item) => item.type === "up").length;
   const topRise = items.filter((item) => item.type === "up").sort((a, b) => (b.bps ?? 0) - (a.bps ?? 0))[0];
-  const usesStoreItems = Boolean(state.status === "ready" && state.data.costs?.items.length);
-  const stale = state.status === "ready" && state.data.prices.stale;
+  const usesStoreItems = demo || Boolean(state.status === "ready" && state.data?.costs?.items.length);
+  const stale = state.status === "ready" && Boolean(state.data?.prices.stale);
 
   useEffect(() => {
     document.title = "BUTILL | 원재료비 상세 분석";
@@ -107,7 +117,7 @@ export default function RawMaterialsAnalysisWebPage() {
             </p>
           </div>
           <span className="analysis-sample-tag">
-            <i /> {stale ? "최신 시세 수집 지연" : "KAMIS 서울 소매 시세"}
+            <i /> {demo ? "체험용 예시 데이터" : stale ? "최신 시세 수집 지연" : "KAMIS 서울 소매 시세"}
           </span>
         </section>
 
@@ -115,7 +125,7 @@ export default function RawMaterialsAnalysisWebPage() {
           <article>
             <span>추적 중인 원재료</span>
             <strong>{items.length}개 품목</strong>
-            <small>{usesStoreItems ? "매장에 등록한 원재료" : "공통 주요 원재료"}</small>
+            <small>{demo ? "체험용 예시 품목" : usesStoreItems ? "매장에 등록한 원재료" : "공통 주요 원재료"}</small>
           </article>
           <article>
             <span>이번 주 가격 상승</span>
@@ -129,7 +139,7 @@ export default function RawMaterialsAnalysisWebPage() {
           </article>
         </section>
 
-        {state.status !== "ready" && (
+        {!demo && state.status !== "ready" && (
           <section className="raw-web-advice" role="status">
             <div className="raw-web-advice-mark">!</div>
             <div>
@@ -206,7 +216,11 @@ export default function RawMaterialsAnalysisWebPage() {
 
         <footer className="analysis-footer">
           <span>BUTILL</span>
-          <span>시세는 서울 조사 시장 평균이며 참고 정보예요. 매장 식재료비에 자동 반영되지 않아요.</span>
+          <span>
+            {demo
+              ? "체험 모드의 시세와 지출 영향은 화면 예시 값이에요."
+              : "시세는 서울 조사 시장 평균이며 참고 정보예요. 매장 식재료비에 자동 반영되지 않아요."}
+          </span>
         </footer>
       </div>
     </main>

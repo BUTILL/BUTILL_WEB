@@ -51,6 +51,17 @@ body {
   flex-shrink: 0;
 }
 
+/* 체험 모드(예시 데이터) 표시 */
+.dashboard-demo-badge {
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #fff4e5;
+  color: #b4610e;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .dashboard-header-actions a {
   display: grid;
   place-items: center;

@@ -37,13 +37,14 @@ export const scenarioMeta: ScenarioMeta[] = [
   },
 ];
 
-// 시연용 값입니다. 실제 서비스에서는 API 응답으로 교체하세요.
+// 체험 모드(src/data/demo.ts)에서 쓰는 예시 값입니다. 로그인하면 백엔드 계산 결과로 바뀝니다.
 export const scenarios: Scenario[] = [
   {
     key: "basic",
     name: "기본 시나리오",
     label: "현재 추세 유지",
     period: "약 8개월",
+    runwayNote: "약 8개월 뒤 가용자금 부족 예상",
     color: "#1769d2",
     tint: "#edf4ff",
     fundsInTenThousands: [
@@ -57,6 +58,7 @@ export const scenarios: Scenario[] = [
     name: "낙관 시나리오",
     label: "매출 성장",
     period: "약 12개월 이상",
+    runwayNote: "분석 기간 내 부족 없음",
     color: "#149447",
     tint: "#edf8f1",
     fundsInTenThousands: [
@@ -70,6 +72,7 @@ export const scenarios: Scenario[] = [
     name: "비관 시나리오",
     label: "매출 감소 · 원가 상승",
     period: "약 5개월",
+    runwayNote: "약 5개월 뒤 자금 고갈 위험",
     color: "#d83c3c",
     tint: "#fff0ef",
     fundsInTenThousands: [
