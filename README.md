@@ -1,16 +1,52 @@
-# React + Vite
+# BUTILL_WEB
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+소상공인 경영 리스크 관리 서비스 **버틸(BUTILL)**의 웹 분석 화면입니다.
+버틸 앱에서 입력한 경영정보를 넓은 화면에서 자세히 분석합니다. 백엔드는 [BUTILL_BE](https://github.com/BUTILL/BUTILL_BE)입니다.
 
-Currently, two official plugins are available:
+## 화면
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| 주소 | 화면 | 사용하는 API |
+|---|---|---|
+| `/`, `/intro` | 서비스 소개 | — |
+| `/login`, `/signup` | 로그인·회원가입(매장 등록 포함) | Supabase Auth, `POST /api/v1/stores` |
+| `/home` | 현금흐름 분석 | `GET /stores/{id}/finances` → `POST /analyses/preview` |
+| `/report` | 분석 보고서 | 위와 같음 |
+| `/simulation` | 자금 시뮬레이션 | `POST /scenarios/compare` |
+| `/raw-materials` | 원재료비 분석 | `GET /ingredient-prices`, `GET /stores/{id}/ingredient-costs` |
+| `/tax` | 세금 관리 | `GET /stores/{id}/tax-settings` |
+| `/support` | 지원사업 | `GET /support-programs` |
 
-## React Compiler
+백엔드 응답은 `src/api/mappers.ts`에서 화면 형식(`src/data/*.ts`)으로 바꿉니다.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 로컬 실행
 
-## Expanding the ESLint configuration
+```bash
+npm install
+cp .env.example .env.local   # 값 채우기
+npm run dev                  # http://localhost:5173
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| 환경변수 | 설명 |
+|---|---|
+| `VITE_API_URL` | 백엔드 주소. 로컬은 `http://127.0.0.1:8000` |
+| `VITE_SUPABASE_URL` | Supabase 프로젝트 주소 |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase **publishable 키만**. secret 키는 절대 넣지 않습니다 |
+
+`VITE_` 값은 빌드 결과에 그대로 들어가 브라우저에 공개됩니다. 공개해도 되는 값만 넣습니다.
+백엔드 `.env`의 `BUTILL_CORS_ORIGINS`에 웹 주소(예: `http://localhost:5173`)가 있어야 API를 호출할 수 있습니다.
+
+## 검사
+
+```bash
+node --test tests/cashFlow.test.mjs
+npm run build
+npm run lint
+```
+
+## 배포 (Vercel)
+
+1. Vercel에서 `BUTILL/BUTILL_WEB` 레포를 가져옵니다. 설정은 `vercel.json`에 있습니다(Vite, `dist`, 모든 경로를 `index.html`로).
+2. Vercel 프로젝트 환경변수에 위 3개를 넣습니다. `VITE_API_URL`은 **HTTPS로 배포된 백엔드 주소**여야 합니다.
+3. 배포 주소를 백엔드 `BUTILL_CORS_ORIGINS`에 추가합니다.
+
+`main`이 배포 브랜치입니다. 작업은 `develop`에서 `feature/*` 브랜치를 따서 PR로 합칩니다.
