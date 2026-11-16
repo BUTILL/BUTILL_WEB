@@ -55,7 +55,7 @@
   align-items: center;
   gap: 9px;
   color: #2a5bb4;
-  font: 800 11px "Plus Jakarta Sans", "Noto Sans KR", sans-serif;
+  font: 800 11px "Noto Sans KR", sans-serif;
   letter-spacing: 0.1em;
 }
 .web-auth-kicker i {
@@ -104,7 +104,7 @@
 }
 .web-login-card-kicker {
   color: #6480bd;
-  font: 800 10px "Plus Jakarta Sans", "Noto Sans KR", sans-serif;
+  font: 800 10px "Noto Sans KR", sans-serif;
   letter-spacing: 0.12em;
 }
 .web-login-card h2 {
