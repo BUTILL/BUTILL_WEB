@@ -1,16 +1,4 @@
-/* 전달된 화면의 폰트와 기본 요소 크기를 해당 화면에 적용합니다. */
-@font-face {
-  font-family: "Noto Sans KR";
-  src: url("/fonts/NotoSansKR-VF.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-}
-
-:where(.landing-page, .web-login-page, .analysis-web) {
-  font-family: "Noto Sans KR", sans-serif;
-}
-
+/* 전달된 화면의 기본 요소 크기를 해당 화면에 적용합니다. 글꼴은 index.css에서 전체 화면에 적용합니다. */
 :where(.landing-page, .web-login-page, .analysis-web),
 :where(.landing-page, .web-login-page, .analysis-web) * {
   box-sizing: border-box;

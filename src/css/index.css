@@ -1,12 +1,29 @@
+/* 웹 앱 공통 글꼴: 모든 화면을 Noto Sans KR로 통일합니다. */
+@font-face {
+  font-family: "Noto Sans KR";
+  src: url("/fonts/NotoSansKR-VF.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 /* 웹 앱 공통 설정: 기본 샘플 화면의 너비 제한과 어두운 테마를 제거합니다. */
 :root {
-  font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   color: #17233a;
   background: #f7f8fc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 버튼·입력란도 브라우저 기본 글꼴 대신 같은 글꼴을 사용 */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 body {
