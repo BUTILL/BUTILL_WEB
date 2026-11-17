@@ -9,11 +9,10 @@ import RawMaterialsAnalysisWebPage from "./RawMaterialsAnalysisWebPage";
 import TaxAnalysisWebPage from "./TaxAnalysisWebPage";
 import SupportProgramsWebPage from "./SupportProgramsWebPage";
 import { loadStoreAnalysis } from "../api/butill";
-import { toDashboard, toReport, todayKst } from "../api/mappers";
+import { toDashboard } from "../api/mappers";
 import { loadNothing, useLoad } from "../api/useLoad";
 import { isDemo } from "../data/demo";
-import { sampleDashboardData } from "../data/homeSample";
-import { sampleReportData } from "../data/reportSample";
+import { demoRecorded } from "../data/demoAnalysis";
 import { hasWebSession } from "../data/webSession";
 import "../css/App.css";
 import "../css/DeliveredPages.css";
@@ -76,10 +75,15 @@ function analysisNotice(state, retry) {
 function HomePage() {
   const demo = isDemo();
   const [state, reload] = useLoad(demo ? loadNothing : loadStoreAnalysis);
-  if (demo) return <Home data={sampleDashboardData} />;
-  const analysis = state.status === "ready" ? state.data.analysis : null;
+  // 보고서·시나리오와 같은 데이터: 월별 실적이 있으면 실적 + 예측 6개월, 없으면 경영정보 예측
+  if (demo) return <Home data={toDashboard(demoRecorded.combined, demoRecorded.forecastStart)} />;
+  const recorded = state.status === "ready" ? state.data?.recorded : null;
+  const analysis = state.status === "ready" ? state.data?.analysis : null;
   const notice = analysisNotice(state, () => reload().catch(() => undefined));
-  return <Home data={analysis ? toDashboard(analysis) : null} notice={notice} />;
+  const data = recorded
+    ? toDashboard(recorded.combined, recorded.forecastStart)
+    : analysis ? toDashboard(analysis) : null;
+  return <Home data={data} notice={notice} />;
 }
 
 // 같은 브라우저에서 다시 열어도 마지막 새로고침 시각을 유지
@@ -94,11 +98,14 @@ function readReportRefresh() {
   }
 }
 
+const toOutlook = (recorded) => (recorded ? { analysis: recorded.combined, forecastStart: recorded.forecastStart } : null);
+
 function ReportPage() {
   const demo = isDemo();
   const [state, reload] = useLoad(demo ? loadNothing : loadStoreAnalysis);
   const [refreshedAt, setRefreshedAt] = useState(readReportRefresh);
-  const analysis = state.status === "ready" ? state.data?.analysis : null;
+  // 월별 실적이 있으면 실적 달만 분석하고(체험 모드와 같은 방식), 없으면 경영정보 예측을 분석
+  const analysis = state.status === "ready" ? state.data?.recorded?.history ?? state.data?.analysis : null;
 
   // 새로고침: 저장된 경영정보로 다시 계산하고, 성공한 시각을 화면에 전달
   const refreshReport = useCallback(async (_analysisDate, requestedAt) => {
@@ -112,19 +119,14 @@ function ReportPage() {
   }, [reload, demo]);
 
   if (demo) {
-    return (
-      <Report
-        data={{ ...sampleReportData, analysisDate: todayKst() }}
-        refreshedAt={refreshedAt}
-        onRefresh={refreshReport}
-      />
-    );
+    return <Report analysis={demoRecorded.history} outlook={toOutlook(demoRecorded)} refreshedAt={refreshedAt} onRefresh={refreshReport} />;
   }
 
   const notice = analysisNotice(state, () => reload().catch(() => undefined));
   return (
     <Report
-      data={analysis ? toReport(analysis) : null}
+      analysis={analysis}
+      outlook={toOutlook(state.status === "ready" ? state.data?.recorded : null)}
       notice={notice}
       refreshedAt={refreshedAt}
       onRefresh={refreshReport}

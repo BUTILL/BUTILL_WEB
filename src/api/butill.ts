@@ -1,4 +1,5 @@
 import { ApiError, apiFetch } from "./client";
+import { withRecords, type MonthlyRecord, type RecordedAnalysis } from "./localAnalysis";
 import type {
   Analysis, Comparison, Finances, IngredientCosts, IngredientPrices, Store, SupportPrograms, TaxSettings,
 } from "./types";
@@ -25,16 +26,38 @@ export async function getFinances(storeId: string): Promise<Finances | null> {
   }
 }
 
-export type StoreAnalysis = { store: Store | null; finances: Finances | null; analysis: Analysis | null };
+export type StoreAnalysis = {
+  store: Store | null;
+  finances: Finances | null;
+  analysis: Analysis | null; // 경영정보로 계산한 앞으로의 흐름
+  recorded?: RecordedAnalysis | null; // 월별 실적이 있으면 실적 + 예측
+};
 
-// 저장된 경영정보로 계산만 하고 이력은 남기지 않는다(미리보기)
+// 월별 실적. 실적 기능을 못 쓰는 상태(테이블 미생성 등)여도 기존 분석은 보여 주도록 빈 목록으로 돌린다
+export async function getMonthlyRecords(storeId: string): Promise<MonthlyRecord[]> {
+  try {
+    const res = await apiFetch<{ records: (MonthlyRecord & { net_cashflow: number })[] }>(
+      `/api/v1/stores/${storeId}/monthly-records`,
+    );
+    return res.records.map(({ month, sales, ingredient_cost, fixed_cost, irregular_cost }) =>
+      ({ month, sales, ingredient_cost, fixed_cost, irregular_cost }));
+  } catch (error) {
+    if (error instanceof ApiError && error.status !== 401) return [];
+    throw error;
+  }
+}
+
+// 저장된 경영정보로 계산만 하고 이력은 남기지 않는다(미리보기). 월별 실적이 있으면 실적 뒤에 이어 붙인다
 export async function loadStoreAnalysis(): Promise<StoreAnalysis> {
   const store = await getCurrentStore();
   if (!store) return { store, finances: null, analysis: null };
-  const finances = await getFinances(store.id);
+  const [finances, records] = await Promise.all([getFinances(store.id), getMonthlyRecords(store.id)]);
   if (!finances) return { store, finances, analysis: null };
   const analysis = await apiFetch<Analysis>("/api/v1/analyses/preview", { method: "POST", body: finances.input, auth: false });
-  return { store, finances, analysis };
+  // 마지막 실적 달 말 잔액 = 경영정보의 현재 보유자금, 예비자금은 분석과 같은 기준
+  const recorded = withRecords(records, analysis.initial_cash, analysis.initial_cash - analysis.initial_available_cash,
+    analysis.monthly);
+  return { store, finances, analysis, recorded };
 }
 
 export async function compareScenarios(finances: Finances): Promise<Comparison> {

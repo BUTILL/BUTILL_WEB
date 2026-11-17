@@ -685,3 +685,22 @@ body {
   line-height: 1.7;
 }
 
+
+/* 예비자금 기준선 범례와 "예비자금 사용 시작" 표시 */
+.dashboard-legend .reserve-key {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px dashed #e08a1e;
+  vertical-align: middle;
+}
+
+.dashboard-chart-warning.reserve {
+  border-color: #e08a1e;
+  color: #b86a0c;
+}
+
+.dashboard-runway-group {
+  display: grid;
+  gap: 14px;
+}

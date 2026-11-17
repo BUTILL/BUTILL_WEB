@@ -13,6 +13,7 @@ export type DashboardData = {
   startMonth: string; //앱 사용을 시작한 월
   openingBalance: number; //시작 월의 수입·지출을 반영하기 전 사용자의 잔액
   monthlyCashFlows: MonthlyCashFlowInput[];
+  reserve?: number; // 예비자금(원). 잔고가 이 아래로 내려가면 예비자금을 쓰기 시작한 것(캐시런웨이 기준)
 };
 
 export type CashFlowRow = {
@@ -128,8 +129,8 @@ export function buildCashFlowRows(data: DashboardData | null | undefined): CashF
 }
 
 //받은 금액에 맞춰 세로축 범위와 그래프 좌표 계산
-export function createChartGeometry(rows: CashFlowRow[]) {
-  const values = rows.flatMap((row) => [row.income, row.expense, row.balance])
+export function createChartGeometry(rows: CashFlowRow[], reserve = 0) {
+  const values = [...rows.flatMap((row) => [row.income, row.expense, row.balance]), reserve]
     .filter((value): value is number => value !== null);
   const minimum = Math.min(0, ...values);
   const maximum = Math.max(1, ...values);

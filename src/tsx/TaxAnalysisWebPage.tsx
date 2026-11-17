@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DashboardHeader from "./DashboardHeader";
 import "../css/SimulationAnalysisWebPage.css";
 import "../css/TaxAnalysisWebPage.css";
@@ -8,31 +8,31 @@ import { taxProfile, toTaxEvents } from "../api/mappers";
 import type { Store, TaxSettings } from "../api/types";
 import { loadNothing, useLoad } from "../api/useLoad";
 import { isDemo } from "../data/demo";
+import { demoTax } from "../data/demoSnapshot";
 import {
   kindDescriptions,
   kindLabels,
   months,
   monthNames,
-  taxCalendarYear,
-  taxEvents as sampleTaxEvents,
   taxKinds,
   taxSourceLinks,
   type TaxKind,
 } from "../data/taxCalendar";
 
 const thisYear = new Date().getFullYear();
-const demoProfile = { title: "개인사업자 · 일반과세자", tags: ["직원 있음", "세무사 이용"] };
 
 export default function TaxAnalysisWebPage() {
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const currentMonth = new Date().getMonth() + 1;
+  // 이번 달 세무 일정을 맨 위에 먼저 보여 준다
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const detailRef = useRef<HTMLElement>(null);
   const [selectedKind, setSelectedKind] = useState<TaxKind | "all">("all");
   const demo = isDemo();
   const [state, reload] = useLoad<{ store: Store | null; tax: TaxSettings | null } | null>(demo ? loadNothing : loadStoreTax);
-  const tax = state.status === "ready" ? state.data?.tax ?? null : null;
-  const taxEvents = demo
-    ? sampleTaxEvents.map((event) => ({ ...event, year: taxCalendarYear }))
-    : tax ? toTaxEvents(tax) : [];
-  const profile = demo ? demoProfile : tax ? taxProfile(tax) : null;
+  // 체험 모드도 로그인 모드와 같은 변환을 쓴다(백엔드 응답 스냅숏 demoTax)
+  const tax = demo ? demoTax : state.status === "ready" ? state.data?.tax ?? null : null;
+  const taxEvents = tax ? toTaxEvents(tax) : [];
+  const profile = tax ? taxProfile(tax) : null;
 
   useEffect(() => {
     document.title = "BUTILL | 연간 세금 관리";
@@ -58,7 +58,7 @@ export default function TaxAnalysisWebPage() {
             </p>
           </div>
           <span className="analysis-sample-tag">
-            <i /> {demo ? "체험용 예시 프로필" : tax?.saved ? "앱 세금 설정 기준" : "기본 설정 기준"}
+            <i /> {tax?.saved ? "앱 세금 설정 기준" : "기본 설정 기준"}
           </span>
         </section>
 
@@ -70,7 +70,7 @@ export default function TaxAnalysisWebPage() {
           {profile?.tags.map((tag) => <span key={tag}>{tag}</span>)}
           <p>
             {demo
-              ? `체험 모드에서는 ${taxCalendarYear}년 국세청 세무일정을 바탕으로 한 예시 일정을 보여 줘요.`
+              ? "앱에서 세금 설정을 저장하기 전이라 기본값(개인 일반과세자·직원 있음)으로 보여 줘요."
               : state.status === "loading"
               ? "세금 설정을 불러오는 중이에요."
               : state.status === "error"
@@ -127,63 +127,14 @@ export default function TaxAnalysisWebPage() {
             </div>
           </div>
 
-          <div className="tax-month-grid">
-            {months.map((month) => {
-              const monthEvents = taxEvents
-                .filter((event) => event.month === month)
-                .filter(
-                  (event) =>
-                    selectedKind === "all" || event.kind === selectedKind,
-                )
-                .sort((a, b) => a.day - b.day);
-              return (
-                <button
-                  key={month}
-                  type="button"
-                  className={
-                    selectedMonth === month ? "tax-month selected" : "tax-month"
-                  }
-                  aria-pressed={selectedMonth === month}
-                  onClick={() => setSelectedMonth(month)}
-                >
-                  <span className="tax-month-title">
-                    <b>{monthNames[month - 1]}</b>
-                    <small>
-                      {monthEvents.length
-                        ? `${monthEvents.length}건`
-                        : "일정 없음"}
-                    </small>
-                  </span>
-                  {monthEvents.length ? (
-                    <span className="tax-month-events">
-                      {monthEvents.slice(0, 2).map((event) => (
-                        <span
-                          className={`tax-mini-event ${event.kind}`}
-                          key={`${event.day}-${event.name}`}
-                        >
-                          <b>{event.day}일</b>
-                          <span>{event.name}</span>
-                        </span>
-                      ))}
-                      {monthEvents.length > 2 && (
-                        <small>외 {monthEvents.length - 2}건</small>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="tax-month-empty">
-                      등록된 주요 일정이 없어요
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <section className="tax-month-detail" aria-live="polite">
+          <section className="tax-month-detail" aria-live="polite" ref={detailRef}>
             <div className="tax-month-detail-heading">
               <div>
                 <span className="analysis-kicker">MONTHLY DETAILS</span>
-                <h3>{monthNames[selectedMonth - 1]} 세무 일정</h3>
+                <h3>
+                  {monthNames[selectedMonth - 1]} 세무 일정
+                  {selectedMonth === currentMonth && <em className="tax-current-badge">이번 달</em>}
+                </h3>
               </div>
               <span>{visibleEvents.length}건</span>
             </div>
@@ -218,6 +169,63 @@ export default function TaxAnalysisWebPage() {
               </p>
             )}
           </section>
+
+          <div className="tax-month-grid">
+            {months.map((month) => {
+              const monthEvents = taxEvents
+                .filter((event) => event.month === month)
+                .filter(
+                  (event) =>
+                    selectedKind === "all" || event.kind === selectedKind,
+                )
+                .sort((a, b) => a.day - b.day);
+              return (
+                <button
+                  key={month}
+                  type="button"
+                  className={
+                    selectedMonth === month ? "tax-month selected" : "tax-month"
+                  }
+                  aria-pressed={selectedMonth === month}
+                  onClick={() => {
+                    setSelectedMonth(month);
+                    // 상세가 달력 위에 있어 다른 달을 누르면 상세로 올라간다
+                    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  <span className="tax-month-title">
+                    <b>{monthNames[month - 1]}</b>
+                    <small>
+                      {monthEvents.length
+                        ? `${monthEvents.length}건`
+                        : "일정 없음"}
+                    </small>
+                  </span>
+                  {monthEvents.length ? (
+                    <span className="tax-month-events">
+                      {monthEvents.slice(0, 2).map((event) => (
+                        <span
+                          className={`tax-mini-event ${event.kind}`}
+                          key={`${event.day}-${event.name}`}
+                        >
+                          <b>{event.day}일</b>
+                          <span>{event.name}</span>
+                        </span>
+                      ))}
+                      {monthEvents.length > 2 && (
+                        <small>외 {monthEvents.length - 2}건</small>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="tax-month-empty">
+                      등록된 주요 일정이 없어요
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
         </section>
 
         <section className="tax-info-section">

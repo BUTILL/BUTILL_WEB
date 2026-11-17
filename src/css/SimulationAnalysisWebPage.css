@@ -613,3 +613,288 @@
     margin-left: 0;
   }
 }
+
+/* 시나리오 가정 입력: 매출·원재료비·고정비 %와 적용 기간 */
+.analysis-assumption-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5b6984;
+}
+
+.analysis-assumption-input input,
+.analysis-assumption-months select {
+  width: 84px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #dfe4ef;
+  border-radius: 9px;
+  background: #fbfcff;
+  color: #17233a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.analysis-assumption-input input:focus,
+.analysis-assumption-months select:focus {
+  border-color: #5b7fd0;
+  outline: 0;
+  box-shadow: 0 0 0 3px #eaf0ff;
+}
+
+.analysis-assumption-summary {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f4f6fb;
+  color: #26344e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 그래프: 가정 적용 시작 지점 */
+.analysis-start-line {
+  stroke: #8a95a8;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.analysis-start-label {
+  fill: #5b6984;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* 시나리오 가정 입력 가이드 */
+.analysis-guide {
+  margin-top: 28px;
+  padding: 26px 28px;
+  border: 1px solid #e3e8f2;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.analysis-guide h2 {
+  margin: 6px 0 16px;
+  color: #17233a;
+  font-size: 20px;
+}
+
+.analysis-guide ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: guide;
+}
+
+.analysis-guide li {
+  position: relative;
+  padding: 16px 16px 16px 50px;
+  border-radius: 14px;
+  background: #f7f9fd;
+  counter-increment: guide;
+}
+
+.analysis-guide li::before {
+  content: counter(guide);
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: #1769d2;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analysis-guide li b {
+  color: #17233a;
+  font-size: 14px;
+}
+
+.analysis-guide li p {
+  margin: 6px 0 0;
+  color: #5b6984;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.analysis-guide code {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #e8eefb;
+  color: #1769d2;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.analysis-guide-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #dfe4ef;
+  color: #48556f;
+  font-size: 13px;
+}
+
+.analysis-guide-examples span {
+  color: #1769d2;
+  font-weight: 700;
+}
+
+.analysis-guide-examples p {
+  margin: 0;
+}
+
+/* 그래프: 예측 구간 */
+.analysis-forecast-zone {
+  fill: #f2f5fb;
+}
+
+.analysis-forecast-label {
+  fill: #7a879d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.analysis-month-label.forecast {
+  fill: #7a879d;
+}
+
+/* 시나리오 가정 카드: 기간 + 변화율, 여러 개 추가 */
+.analysis-assumption-empty {
+  margin: 10px 0;
+  color: #7a879d;
+  font-size: 13px;
+}
+
+.analysis-assumption-cards {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-assumption-card {
+  padding: 12px;
+  border: 1px solid #e3e8f2;
+  border-radius: 12px;
+  background: #fbfcff;
+}
+
+.analysis-assumption-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #17233a;
+  font-size: 13px;
+}
+
+.analysis-assumption-card-head button {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #d83c3c;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.analysis-assumption-card-head button:hover {
+  background: #fdecec;
+}
+
+.analysis-assumption-months {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: #5b6984;
+}
+
+.analysis-assumption-months select {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  text-align: left;
+}
+
+.analysis-assumption-pcts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.analysis-assumption-pcts label {
+  display: grid;
+  gap: 4px;
+  color: #26344e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.analysis-assumption-pcts label > span:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.analysis-assumption-pcts small {
+  color: #8a95a8;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.analysis-assumption-pcts .analysis-assumption-input input {
+  width: 100%;
+  min-width: 0;
+}
+
+.analysis-assumption-add-button {
+  width: 100%;
+  height: 40px;
+  margin-bottom: 10px;
+  border: 1px dashed #9fb4e0;
+  border-radius: 10px;
+  background: #f4f7fe;
+  color: #1769d2;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.analysis-assumption-add-button:hover:enabled {
+  background: #eaf0ff;
+}
+
+.analysis-assumption-add-button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+/* 가정을 여러 개 넣어 오른쪽이 길어져도 그래프는 내용 높이만 차지하고 화면에 붙어 있게 */
+@media (min-width: 901px) {
+  .analysis-workspace > .analysis-chart-panel {
+    position: sticky;
+    top: 92px;
+    align-self: start;
+  }
+}
