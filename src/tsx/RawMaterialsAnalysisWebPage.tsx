@@ -3,14 +3,13 @@ import { loadRawMaterials, type RawMaterialData } from "../api/butill";
 import { toRawItems } from "../api/mappers";
 import { loadNothing, useLoad } from "../api/useLoad";
 import { isDemo } from "../data/demo";
+import { DEMO_SNAPSHOT_DATE, demoPrices } from "../data/demoSnapshot";
 import DashboardHeader from "./DashboardHeader";
 import "../css/SimulationAnalysisWebPage.css";
 import "../css/RawMaterialsAnalysisWebPage.css";
 
-import { rawMaterialItems, type RawItem } from "../data/rawMaterials";
+import type { RawItem } from "../data/rawMaterials";
 
-// 체험 모드 예시 품목에는 bps가 없어 표시용 변동률 문자열에서 계산
-const withBps = (item: RawItem): RawItem => ({ ...item, bps: item.bps ?? Math.round(parseFloat(item.change) * 100) });
 const demoWeekLabels = ["4주 전", "3주 전", "2주 전", "1주 전", "이번 주"];
 
 const formatPrice = (price: number) => "₩" + price.toLocaleString("ko-KR");
@@ -90,13 +89,15 @@ function PriceTrend({ item }: { item: RawItem }) {
 export default function RawMaterialsAnalysisWebPage() {
   const demo = isDemo();
   const [state, reload] = useLoad<RawMaterialData | null>(demo ? loadNothing : loadRawMaterials);
-  const items = demo
-    ? rawMaterialItems.map(withBps)
-    : state.status === "ready" && state.data ? toRawItems(state.data.prices, state.data.costs) : [];
+  // 체험 모드도 로그인 모드와 같은 변환을 쓴다(백엔드 응답 스냅숏 demoPrices, 매장 등록 원재료 없음)
+  const data: RawMaterialData | null = demo
+    ? { prices: demoPrices, costs: null }
+    : state.status === "ready" ? state.data : null;
+  const items = data ? toRawItems(data.prices, data.costs) : [];
   const risingCount = items.filter((item) => item.type === "up").length;
   const topRise = items.filter((item) => item.type === "up").sort((a, b) => (b.bps ?? 0) - (a.bps ?? 0))[0];
-  const usesStoreItems = demo || Boolean(state.status === "ready" && state.data?.costs?.items.length);
-  const stale = state.status === "ready" && Boolean(state.data?.prices.stale);
+  const usesStoreItems = Boolean(data?.costs?.items.length);
+  const stale = !demo && Boolean(data?.prices.stale);
 
   useEffect(() => {
     document.title = "BUTILL | 원재료비 상세 분석";
@@ -117,7 +118,7 @@ export default function RawMaterialsAnalysisWebPage() {
             </p>
           </div>
           <span className="analysis-sample-tag">
-            <i /> {demo ? "체험용 예시 데이터" : stale ? "최신 시세 수집 지연" : "KAMIS 서울 소매 시세"}
+            <i /> {demo ? `KAMIS 서울 소매 시세 (${DEMO_SNAPSHOT_DATE} 기준)` : stale ? "최신 시세 수집 지연" : "KAMIS 서울 소매 시세"}
           </span>
         </section>
 
@@ -125,7 +126,7 @@ export default function RawMaterialsAnalysisWebPage() {
           <article>
             <span>추적 중인 원재료</span>
             <strong>{items.length}개 품목</strong>
-            <small>{demo ? "체험용 예시 품목" : usesStoreItems ? "매장에 등록한 원재료" : "공통 주요 원재료"}</small>
+            <small>{usesStoreItems ? "매장에 등록한 원재료" : "공통 주요 원재료"}</small>
           </article>
           <article>
             <span>이번 주 가격 상승</span>
@@ -218,7 +219,7 @@ export default function RawMaterialsAnalysisWebPage() {
           <span>BUTILL</span>
           <span>
             {demo
-              ? "체험 모드의 시세와 지출 영향은 화면 예시 값이에요."
+              ? `${DEMO_SNAPSHOT_DATE}에 받은 시세를 보여 줘요. 시세는 서울 조사 시장 평균이며 참고 정보예요.`
               : "시세는 서울 조사 시장 평균이며 참고 정보예요. 매장 식재료비에 자동 반영되지 않아요."}
           </span>
         </footer>

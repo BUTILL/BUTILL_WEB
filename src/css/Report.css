@@ -127,6 +127,75 @@ html:has(.report-page) {
   margin-inline-end: -5px;
 }
 
+/* 분석 대상 기간: 시작일·종료일 직접 입력 */
+.report-period-row dd {
+  flex-wrap: wrap;
+}
+
+.report-period-inputs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.report-period-inputs input {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #dfe4ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #17233a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.report-period-inputs input:focus {
+  border-color: #5b7fd0;
+  outline: 0;
+  box-shadow: 0 0 0 3px #eaf0ff;
+}
+
+.report-date-row .report-period-reset {
+  width: auto;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dfe4ef;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--report-blue);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-period-warning {
+  flex-basis: 100%;
+  color: #d83c3c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.report-period-warning:empty {
+  display: none;
+}
+
+.report-period-summary {
+  color: #5b6984;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* 시각과 상태 문구가 바뀌어도 버튼과 날짜 행의 위치를 유지 */
 .report-analysis-date {
   display: inline-flex;

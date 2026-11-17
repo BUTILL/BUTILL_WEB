@@ -694,3 +694,23 @@
     padding: 0 12px;
   }
 }
+/* 이번 달 세무 일정을 달력 위에 먼저 보여 줌 */
+.tax-month-detail {
+  scroll-margin-top: 92px;
+}
+
+.tax-month-detail + .tax-month-grid {
+  margin-top: 18px;
+}
+
+.tax-current-badge {
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eaf0ff;
+  color: #1769d2;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  vertical-align: middle;
+}

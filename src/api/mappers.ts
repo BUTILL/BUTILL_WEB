@@ -4,6 +4,7 @@ import type { ReportData } from "../data/reportData";
 import type { Scenario, ScenarioKey } from "../data/simulation";
 import { scenarioMeta } from "../data/simulation";
 import type { TaxEvent, TaxKind } from "../data/taxCalendar";
+import { detectRiskCauses } from "./riskRules";
 import type { Analysis, Comparison, IngredientCosts, IngredientPrices, Runway, TaxSettings } from "./types";
 
 const won = new Intl.NumberFormat("ko-KR");
@@ -18,24 +19,27 @@ const yearMonth = (date: string) => date.slice(0, 7);
 const monthLabel = (date: string) => `${Number(date.slice(0, 4))}년 ${Number(date.slice(5, 7))}월`;
 
 // 현금흐름 분석 화면: 매출 = 수입, 식재료비 + 고정비 + 비정기 지출 = 지출
-export function toDashboard(analysis: Analysis): DashboardData {
+// forecastStart가 있으면(월별 실적 + 예측) 그 순번부터 예측, 없으면 이번 달부터 예측
+export function toDashboard(analysis: Analysis, forecastStart?: number): DashboardData {
   const today = yearMonth(todayKst());
   return {
     startMonth: yearMonth(analysis.start_month),
     openingBalance: analysis.initial_cash,
-    monthlyCashFlows: analysis.monthly.map((m) => ({
+    reserve: analysis.initial_cash - analysis.initial_available_cash,
+    monthlyCashFlows: analysis.monthly.map((m, index) => ({
       month: yearMonth(m.month),
       income: m.sales,
       expense: m.ingredient_cost + m.fixed_cost + m.irregular_cost,
-      isForecast: yearMonth(m.month) >= today,
+      isForecast: forecastStart == null ? yearMonth(m.month) >= today : index >= forecastStart,
     })),
   };
 }
 
+// 위험도가 높은 순서. 현금이 실제로 모자라는 위험을 비용 구조 원인보다 먼저 보여 준다
+// 운영 적자는 지속 순현금유출(CASH-01) 규칙과 겹쳐 규칙 쪽으로 보여 준다
+const riskOrder = ["CASH_SHORTAGE", "INITIAL_CASH_SHORTAGE", "RESERVE_NEEDED"];
 const riskTitles: Record<string, string> = {
   INITIAL_CASH_SHORTAGE: "초기 자금 부족",
-  OPERATING_DEFICIT: "운영 적자",
-  IRREGULAR_OUTFLOW: "비정기 지출",
   RESERVE_NEEDED: "예비자금 사용",
   CASH_SHORTAGE: "현금 부족",
 };
@@ -45,33 +49,72 @@ function endOfMonth(month: string): string {
   return new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10);
 }
 
-// 분석 보고서 화면: 위험은 종류별로 묶고 해당 금액을 합산
-export function toReport(analysis: Analysis): ReportData {
-  const runway = analysis.cash_runway;
+export type ReportPeriod = { startDate: string; endDate: string };
+
+// 분석 전체 기간(시작 월 1일 ~ 마지막 월 말일)
+export function analysisRange(analysis: Analysis): ReportPeriod {
   const last = analysis.monthly[analysis.monthly.length - 1];
-  const nets = analysis.monthly.map((m) => m.net_cashflow);
+  return { startDate: analysis.start_month, endDate: last ? endOfMonth(last.month.slice(0, 7)) : analysis.start_month };
+}
+
+
+// 분석 보고서 화면: 선택한 기간과 겹치는 달만 집계하고, 위험 원인을 3개 이상 만든다
+// 월별 실적이 있을 때 앞으로의 흐름: 실적 + 예측 분석과 예측이 시작되는 순번
+export type ReportOutlook = { analysis: Analysis; forecastStart: number };
+
+export function toReport(analysis: Analysis, period?: ReportPeriod | null, outlook?: ReportOutlook | null): ReportData {
+  const range = period ?? analysisRange(analysis);
+  const rows = analysis.monthly.filter((m) => m.month <= range.endDate && endOfMonth(m.month.slice(0, 7)) >= range.startDate);
+  const inPeriod = new Set(rows.map((m) => m.month));
+  const runway = analysis.cash_runway;
+  const days = (Date.parse(range.endDate) - Date.parse(range.startDate)) / 86_400_000;
+  const nets = rows.map((m) => m.net_cashflow);
+  const lowest = rows.reduce<number | null>((min, m) => (min === null || m.cash_balance < min ? m.cash_balance : min), null);
+
+  // 1) 백엔드가 감지한 위험(현금 부족 등)을 종류별로 묶음
   const grouped = new Map<string, { months: string[]; amount: number; message: string }>();
   for (const risk of analysis.risks) {
+    if (!inPeriod.has(risk.month) || !riskTitles[risk.code]) continue;
     const item = grouped.get(risk.code) ?? { months: [], amount: 0, message: risk.message };
     item.months.push(risk.month);
     item.amount += risk.amount;
     grouped.set(risk.code, item);
   }
-  const start = analysis.start_month;
-  const end = last ? endOfMonth(last.month.slice(0, 7)) : start;
-  const days = (Date.parse(end) - Date.parse(start)) / 86_400_000;
-  return {
-    analysisDate: todayKst(),
-    period: { startDate: start, endDate: end, weeks: Math.floor(days / 7) },
-    runwayMonths: runway.status === "no_shortage_in_period" ? analysis.months : runway.full_months_before_shortage,
-    availableCashWon: analysis.initial_available_cash,
-    projectedShortfallWon: runway.status === "shortage" ? -runway.shortage_amount : last?.cash_balance ?? null,
-    monthlyNetCashFlowWon: nets.length ? Math.round(nets.reduce((a, b) => a + b, 0) / nets.length) : null,
-    risks: [...grouped].map(([code, item]) => ({
-      title: riskTitles[code] ?? code,
+  const detected = riskOrder.filter((code) => grouped.has(code)).map((code) => {
+    const item = grouped.get(code)!;
+    return {
+      title: riskTitles[code],
       description: `${monthLabel(item.months[0])}${item.months.length > 1 ? ` 외 ${item.months.length - 1}개월` : ""} · ${item.message}`,
       expenseWon: item.amount,
-    })),
+    };
+  });
+
+  // 2) 웹 주요 위험원인 분석 규칙(riskRules.ts)으로 판정한 원인
+  const causes = detectRiskCauses(analysis, rows).map(({ title, description, expenseWon }) => ({ title, description, expenseWon }));
+
+  return {
+    analysisDate: todayKst(),
+    period: { startDate: range.startDate, endDate: range.endDate, weeks: Math.max(0, Math.floor(days / 7)) },
+    ...(outlook ? outlookSummary(outlook) : {
+      runwayMonths: runway.status === "no_shortage_in_period" ? analysis.months : runway.full_months_before_shortage,
+      availableCashWon: analysis.initial_available_cash,
+      projectedShortfallWon: lowest === null ? null : lowest < 0 ? lowest : rows[rows.length - 1].cash_balance,
+    }),
+    monthlyNetCashFlowWon: nets.length ? Math.round(nets.reduce((a, b) => a + b, 0) / nets.length) : null,
+    risks: [...detected, ...causes],
+  };
+}
+
+// 실적 기준 보고서: 지금 = 마지막 실적 달 말, 앞으로 = 예측 구간(가용자금 기준)
+function outlookSummary({ analysis, forecastStart }: ReportOutlook) {
+  const now = analysis.monthly[forecastStart - 1];
+  const future = analysis.monthly.slice(forecastStart);
+  const shortage = future.findIndex((m) => m.available_balance < 0);
+  return {
+    runwayMonths: shortage < 0 ? future.length : shortage,
+    runwayIsMinimum: shortage < 0,
+    availableCashWon: now ? now.available_balance : analysis.initial_available_cash,
+    projectedShortfallWon: shortage >= 0 ? future[shortage].available_balance : future[future.length - 1]?.available_balance ?? null,
   };
 }
 
@@ -165,8 +208,10 @@ export function toTaxEvents(tax: TaxSettings): TaxEvent[] {
       events.push({ year, month, day, kind: taxKind(item.code), name: item.title, detail: item.note ?? "기본 신고·납부 기한 기준", applies: "앱에 입력한 세금 설정 기준" });
       continue;
     }
+    // 매월 10일 일정은 이번 달부터 12개월로 만든다(이번 달 기한이 지났어도 이번 달 일정에 올해 날짜로 보이게)
+    const [thisYear, thisMonth] = todayKst().split("-").map(Number);
     for (let offset = 0; offset < 12; offset += 1) {
-      const date = new Date(Date.UTC(year, month - 1 + offset, 10));
+      const date = new Date(Date.UTC(thisYear, thisMonth - 1 + offset, 10));
       const weekday = date.getUTCDay();
       date.setUTCDate(date.getUTCDate() + (weekday === 6 ? 2 : weekday === 0 ? 1 : 0));
       events.push({

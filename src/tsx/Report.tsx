@@ -2,12 +2,17 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import DashboardHeader from "./DashboardHeader";
 import type { DashboardHeaderProps } from "./DashboardHeader";
+import { analysisRange, toReport, type ReportOutlook, type ReportPeriod } from "../api/mappers";
+import type { Analysis } from "../api/types";
 import { formatDate, formatRunway, formatWon, missingValue } from "../data/reportData";
 import type { ReportData } from "../data/reportData";
 import "../css/Report.css";
 
 type ReportProps = DashboardHeaderProps & {
   data?: ReportData | null;
+  analysis?: Analysis | null; // 있으면 선택한 기간으로 보고서를 다시 계산
+  outlook?: ReportOutlook | null; // 월별 실적이 있을 때 앞으로의 흐름(현재 가용자금·런웨이)
+
   notice?: { title: string; message: string; action?: { label: string; onClick: () => void } } | null; // 데이터가 없을 때 안내
   refreshedAt?: string;
   onRefresh?: (analysisDate: string, requestedAt: string) => Promise<void>;
@@ -74,146 +79,107 @@ function ReportMetric({
 }
 
 const dayMs = 86_400_000;
-const minimumPeriodDays = 28;
+const reportPeriodKey = "butill:report:selected-period-v2";
 
-const reportPeriodKey = "butill:report:selected-period";
-
-function readSelectedPeriod(): ReportData["period"] {
+function readSelectedPeriod(): ReportPeriod | null {
   try {
     const period = JSON.parse(sessionStorage.getItem(reportPeriodKey) ?? "null");
-    if (!period || typeof period.startDate !== "string" || typeof period.endDate !== "string") {
-      return null;
-    }
-
-    const days = (Date.parse(period.endDate) - Date.parse(period.startDate)) / dayMs;
-    if (days >= minimumPeriodDays && period.weeks === Math.floor(days / 7)) {
-      return period;
+    if (period && /^\d{4}-\d{2}-\d{2}$/.test(period.startDate) && /^\d{4}-\d{2}-\d{2}$/.test(period.endDate)) {
+      return { startDate: period.startDate, endDate: period.endDate };
     }
   } catch {
-    // 저장소를 사용할 수 없으면 보고서의 기본 기간을 표시
+    // 저장소를 사용할 수 없으면 분석 전체 기간을 표시
   }
   return null;
 }
 
-function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function ReportPeriodPicker({
+// 분석 대상 기간: 시작일과 종료일을 직접 입력. 비우거나 순서가 바뀌면 적용하지 않는다
+function ReportPeriodInputs({
   period,
-  onSelect,
+  range,
+  onChange,
+  onReset,
 }: {
-  period: ReportData["period"];
-  onSelect: (period: NonNullable<ReportData["period"]>) => void;
+  period: ReportPeriod;
+  range: ReportPeriod | null;
+  onChange: (period: ReportPeriod) => void;
+  onReset: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [startDate, setStartDate] = useState<string | null>(null);
+  const [draft, setDraft] = useState(period);
   const [warning, setWarning] = useState("");
-  const [month, setMonth] = useState(() => new Date(period?.startDate ?? new Date().toISOString()));
-  const year = month.getUTCFullYear();
-  const monthIndex = month.getUTCMonth();
-  const firstWeekday = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
-  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-  const minimumEnd = startDate ? dateKey(new Date(Date.parse(startDate) + minimumPeriodDays * dayMs)) : null;
 
-  function selectDay(day: string) {
-    if (!startDate) {
-      setStartDate(day);
+  function update(next: ReportPeriod) {
+    setDraft(next);
+    if (!next.startDate || !next.endDate) {
+      setWarning("시작일과 종료일을 모두 입력하세요.");
       return;
     }
-
-    if (minimumEnd && day < minimumEnd) {
-      setWarning("기간이 최소 4주가 되어야합니다");
+    if (next.startDate > next.endDate) {
+      setWarning("종료일은 시작일보다 뒤여야 해요.");
       return;
     }
-
-    const days = (Date.parse(day) - Date.parse(startDate)) / dayMs;
-    onSelect({ startDate, endDate: day, weeks: Math.floor(days / 7) });
-    setStartDate(null);
+    if (range && (next.startDate < range.startDate || next.endDate > range.endDate)) {
+      setWarning(`${formatDate(range.startDate)} ~ ${formatDate(range.endDate)} 안에서 골라 주세요.`);
+      return;
+    }
     setWarning("");
-    setOpen(false);
-    document.getElementById("report-period-trigger")?.focus();
+    onChange(next);
   }
 
   return (
-    <span className="report-calendar" onKeyDown={(event) => {
-      if (event.key === "Escape" && open) {
-        setOpen(false);
-        document.getElementById("report-period-trigger")?.focus();
-      }
-    }}>
-      <button
-        id="report-period-trigger"
-        className="report-calendar-trigger"
-        type="button"
-        aria-label="분석 대상 기간 선택"
-        aria-expanded={open}
-        aria-controls={open ? "report-period-calendar" : undefined}
-        onClick={() => {
-          setStartDate(null);
-          setWarning("");
-          setOpen(!open);
-        }}
-      >
-        <ReportIcon name="calendar" />
-      </button>
-      {open && (
-        <span className="report-calendar-popover" id="report-period-calendar" role="group" aria-label="분석 대상 기간 달력">
-          <span className="report-calendar-month">
-            <button type="button" aria-label="이전 달" onClick={() => setMonth(new Date(Date.UTC(year, monthIndex - 1, 1)))}>‹</button>
-            <strong>{year}년 {monthIndex + 1}월</strong>
-            <button type="button" aria-label="다음 달" onClick={() => setMonth(new Date(Date.UTC(year, monthIndex + 1, 1)))}>›</button>
-          </span>
-          <span className="report-calendar-hint">
-            {minimumEnd ? `종료일 선택 · ${formatDate(minimumEnd)}부터` : "시작일을 선택하세요."}
-          </span>
-          <span className="report-calendar-grid">
-            {["일", "월", "화", "수", "목", "금", "토"].map((day) => <span key={day} aria-hidden="true">{day}</span>)}
-            {Array.from({ length: firstWeekday }, (_, index) => <span key={`blank-${index}`} aria-hidden="true" />)}
-            {Array.from({ length: daysInMonth }, (_, index) => {
-              const day = index + 1;
-              const key = dateKey(new Date(Date.UTC(year, monthIndex, day)));
-              const tooEarly = minimumEnd !== null && key < minimumEnd && key !== startDate;
-
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  aria-label={`${year}년 ${monthIndex + 1}월 ${day}일`}
-                  aria-pressed={key === startDate}
-                  className={tooEarly ? "report-calendar-early" : undefined}
-                  onClick={() => selectDay(key)}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </span>
-          <span className="report-calendar-warning" role="status">{warning}</span>
-        </span>
+    <span className="report-period-inputs">
+      <label>
+        <span className="report-visually-hidden">분석 시작일</span>
+        <input
+          type="date"
+          value={draft.startDate}
+          min={range?.startDate}
+          max={range?.endDate}
+          onChange={(event) => update({ ...draft, startDate: event.target.value })}
+        />
+      </label>
+      <span aria-hidden="true">~</span>
+      <label>
+        <span className="report-visually-hidden">분석 종료일</span>
+        <input
+          type="date"
+          value={draft.endDate}
+          min={range?.startDate}
+          max={range?.endDate}
+          onChange={(event) => update({ ...draft, endDate: event.target.value })}
+        />
+      </label>
+      {range && (
+        <button type="button" className="report-period-reset" onClick={() => { setDraft(range); setWarning(""); onReset(); }}>
+          전체 기간
+        </button>
       )}
+      <span className="report-period-warning" role="status">{warning}</span>
     </span>
   );
 }
 
 export default function Report({
-  data,
+  data: givenData,
+  analysis,
+  outlook,
   notice,
   refreshedAt,
   onRefresh,
   ...headerProps
 }: ReportProps) {
-  const [selectedPeriod, setSelectedPeriod] = useState<ReportData["period"]>(readSelectedPeriod);
-  const period = selectedPeriod ?? data?.period ?? null;
-  const remainingDays = selectedPeriod
-    ? ((Date.parse(selectedPeriod.endDate) - Date.parse(selectedPeriod.startDate)) / dayMs) % 7
+  const [selectedPeriod, setSelectedPeriod] = useState<ReportPeriod | null>(readSelectedPeriod);
+  const range = analysis ? analysisRange(analysis) : null;
+  // 분석 결과가 있으면 선택한 기간으로 다시 계산하고, 없으면 받은 보고서를 그대로 표시
+  const data = analysis ? toReport(analysis, selectedPeriod ?? range, outlook) : givenData;
+  const period = data?.period ?? null;
+  const remainingDays = period
+    ? Math.round((Date.parse(period.endDate) - Date.parse(period.startDate)) / dayMs) % 7
     : 0;
   const risks = data?.risks;
 
-  // 금액을 받은 위험부터 지출액 내림차순으로 정렬하고, 금액이 없는 항목은 뒤에 표시
-  const rankedRisks = [...(risks ?? [])].sort(
-    (first, second) => (second.expenseWon ?? -1) - (first.expenseWon ?? -1),
-  );
+  // 위험도 순서(현금 부족 → 비용 구조 원인)는 보고서 계산에서 정한 순서를 따른다
+  const rankedRisks = risks ?? [];
 
   // 월 평균 순현금흐름은 음수일 때 금액을 강조
   const monthlyNet = data?.monthlyNetCashFlowWon;
@@ -235,10 +201,11 @@ export default function Report({
       }).format(new Date(refreshedAt))
     : null;
 
-  function selectPeriod(nextPeriod: NonNullable<ReportData["period"]>) {
+  function selectPeriod(nextPeriod: ReportPeriod | null) {
     setSelectedPeriod(nextPeriod);
     try {
-      sessionStorage.setItem(reportPeriodKey, JSON.stringify(nextPeriod));
+      if (nextPeriod) sessionStorage.setItem(reportPeriodKey, JSON.stringify(nextPeriod));
+      else sessionStorage.removeItem(reportPeriodKey);
     } catch {
       // 저장소를 사용할 수 없어도 현재 화면에는 선택한 기간을 표시
     }
@@ -312,12 +279,22 @@ export default function Report({
                 </span>
               </dd>
             </div>
-            <div className="report-date-row">
-              <dt><ReportPeriodPicker period={period} onSelect={selectPeriod} /> 분석 대상 기간</dt>
+            <div className="report-date-row report-period-row">
+              <dt><ReportIcon name="calendar" /> 분석 대상 기간</dt>
               <dd>
-                {period
-                  ? `${formatDate(period.startDate)} ~ ${formatDate(period.endDate)} (${period.weeks}주${remainingDays ? ` ${remainingDays}일` : ""})`
-                  : missingValue}
+                {analysis && period ? (
+                  <ReportPeriodInputs
+                    period={period}
+                    range={range}
+                    onChange={selectPeriod}
+                    onReset={() => selectPeriod(null)}
+                  />
+                ) : null}
+                <span className="report-period-summary">
+                  {period
+                    ? `${analysis ? "" : `${formatDate(period.startDate)} ~ ${formatDate(period.endDate)} `}(${period.weeks}주${remainingDays ? ` ${remainingDays}일` : ""})`
+                    : missingValue}
+                </span>
               </dd>
             </div>
           </dl>
@@ -339,7 +316,7 @@ export default function Report({
               <ReportMetric
                 icon="calendar"
                 label="캐시런웨이"
-                value={formatRunway(data?.runwayMonths)}
+                value={`${formatRunway(data?.runwayMonths)}${data?.runwayIsMinimum ? " 이상" : ""}`}
                 description="현재 자금으로 버틸 수 있는 예상 기간"
                 className="report-metric-runway"
               />
