@@ -7,6 +7,7 @@ export type ReportData = {
     weeks: number;
   } | null;
   runwayMonths: number | null;
+  runwayIsMinimum?: boolean; // 예측 기간 안에 부족이 없어 "N개월 이상"
   availableCashWon: number | null;
   projectedShortfallWon: number | null; // 부족 금액은 음수
   monthlyNetCashFlowWon: number | null;

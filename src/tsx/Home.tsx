@@ -24,6 +24,9 @@ export default function Home({
     ? availableRows.reduce((sum, row) => sum + (row.net ?? 0), 0) / availableRows.length
     : null;
   const riskRow = rows?.find((row) => row.balance !== null && row.balance <= 0);
+  // 캐시런웨이(보고서·시나리오)와 같은 기준: 잔고가 예비자금 아래로 내려가는 첫 달
+  const reserve = data?.reserve ?? 0;
+  const reserveRow = reserve > 0 ? rows?.find((row) => row.balance !== null && row.balance < reserve) : undefined;
   const currentDateParts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -93,10 +96,16 @@ export default function Home({
 
                   <span>
                     <i className="balance-key" aria-hidden="true" />
-                    순현금
+                    순현금(통장 잔고)
                   </span>
+                  {reserve > 0 && (
+                    <span>
+                      <i className="reserve-key" aria-hidden="true" />
+                      예비자금 {formatMoney(reserve)}
+                    </span>
+                  )}
                 </div>
-                <CashFlowChart rows={rows} currentMonth={currentMonth} todayMonth={todayMonth} />
+                <CashFlowChart rows={rows} currentMonth={currentMonth} todayMonth={todayMonth} reserve={reserve} />
               </article>
 
 
@@ -157,12 +166,24 @@ export default function Home({
                     <h2>캐시런웨이</h2>
                   </div>
 
-                  <span className={`dashboard-risk-badge ${riskRow ? "negative" : complete ? "positive" : ""}`}>
-                    {riskRow ? "주의 등급" : complete ? "기간 내 잔고 유지" : "데이터 확인 필요"}
+                  <span className={`dashboard-risk-badge ${riskRow || reserveRow ? "negative" : complete ? "positive" : ""}`}>
+                    {riskRow || reserveRow ? "주의 등급" : complete ? "기간 내 잔고 유지" : "데이터 확인 필요"}
                   </span>
                 </div>
 
                 <div className="dashboard-diagnosis-body">
+                  <div className="dashboard-runway-group">
+                  {reserveRow && reserveRow !== riskRow && (
+                    <div className="dashboard-runway">
+                      <span>예비자금 사용 시작</span>
+                      <strong className="negative">{formatMonth(reserveRow.month)}</strong>
+                      <p>
+                        {formatMonth(reserveRow.month)}부터 통장 잔고가 예비자금 {formatMoney(reserve)}보다 적어져요.
+                        <br />
+                        분석 보고서·시뮬레이션의 버틸 기간도 이 달을 기준으로 계산합니다.
+                      </p>
+                    </div>
+                  )}
                   <div className="dashboard-runway">
                     <span>현금 소진 예상 시점</span>
 
@@ -182,6 +203,7 @@ export default function Home({
                           ? "전달받은 12개월 수입·지출 기준으로 월말 잔고가 0원보다 높게 유지됩니다."
                           : "누락된 월의 수입·지출을 입력하면 이후의 잔고와 소진 여부를 확인할 수 있습니다." )}
                     </p>
+                  </div>
                   </div>
 
                   <div className="dashboard-solutions">
@@ -250,16 +272,22 @@ export default function Home({
 
 
 // 12개월 그래프: 막대, 잔고선, 눈금과 위험 구간을 계산
-function CashFlowChart({ rows, currentMonth, todayMonth }: { rows: CashFlowRow[]; currentMonth: string; todayMonth: string }) {
-  const { x, y, ticks, zeroY } = createChartGeometry(rows);
+function CashFlowChart({ rows, currentMonth, todayMonth, reserve = 0 }: {
+  rows: CashFlowRow[]; currentMonth: string; todayMonth: string; reserve?: number;
+}) {
+  const { x, y, ticks, zeroY } = createChartGeometry(rows, reserve);
   const riskIndex = rows.findIndex((row) => row.balance !== null && row.balance <= 0);
   const riskRow = rows[riskIndex];
+  // 예비자금 아래로 내려가는 첫 달(캐시런웨이 기준). 현금 소진과 같은 달이면 소진 표시만 보여 준다
+  const reserveIndex = reserve > 0 ? rows.findIndex((row) => row.balance !== null && row.balance < reserve) : -1;
+  const reserveRow = reserveIndex >= 0 && reserveIndex !== riskIndex ? rows[reserveIndex] : undefined;
 
-  // 현금 소진 예상 문구 위치 정렬
-  const warningStyle: CSSProperties | undefined = riskRow ? {
-    left: `${(x(riskIndex) - 13.5) / 880 * 100}%`,
-    top: `calc(${y(Math.max(riskRow.income ?? 0, riskRow.expense ?? 0)) / 880 * 100}cqw - 10px)`,
-  } : undefined;
+  // 경고 문구 위치: 해당 월 막대 위
+  const warningAt = (index: number, row: CashFlowRow): CSSProperties => ({
+    left: `${(x(index) - 13.5) / 880 * 100}%`,
+    top: `calc(${y(Math.max(row.income ?? 0, row.expense ?? 0)) / 880 * 100}cqw - 10px)`,
+  });
+  const warningStyle: CSSProperties | undefined = riskRow ? warningAt(riskIndex, riskRow) : undefined;
 
   return (
     <div
@@ -273,6 +301,12 @@ function CashFlowChart({ rows, currentMonth, todayMonth }: { rows: CashFlowRow[]
           <div className="dashboard-chart-warning" style={warningStyle} data-risk-month={riskRow.month}>
             <span aria-hidden="true">⚠</span>
             현금 소진 예상 시점
+          </div>
+        )}
+        {reserveRow && (
+          <div className="dashboard-chart-warning reserve" style={warningAt(reserveIndex, reserveRow)} data-reserve-month={reserveRow.month}>
+            <span aria-hidden="true">⚠</span>
+            예비자금 사용 시작
           </div>
         )}
 
@@ -298,6 +332,16 @@ function CashFlowChart({ rows, currentMonth, todayMonth }: { rows: CashFlowRow[]
               </text>
             </g>
           ))}
+
+          {/* 예비자금 기준선: 잔고가 이 아래면 예비자금을 쓰는 중(캐시런웨이 기준) */}
+          {reserve > 0 && (
+            <g>
+              <line x1="58" x2="744" y1={y(reserve)} y2={y(reserve)} stroke="#e08a1e" strokeWidth="1.5" strokeDasharray="6,4" />
+              <text x="744" y={y(reserve) - 5} textAnchor="end" fill="#b86a0c" fontSize="10" fontWeight="700">
+                예비자금 {formatMoney(reserve)}
+              </text>
+            </g>
+          )}
 
           {/* 월별 막대와 달력: 미입력 월은 막대 없이 표시합니다. */}
           {rows.map((row, index) => (
@@ -349,7 +393,7 @@ function CashFlowChart({ rows, currentMonth, todayMonth }: { rows: CashFlowRow[]
                 x={x(index)}
                 y="297"
                 textAnchor="middle"
-                fill={row.month === currentMonth ? "#1769d2" : index === riskIndex ? "#c53b3b" : "#748097"}
+                fill={row.month === currentMonth ? "#1769d2" : index === riskIndex ? "#c53b3b" : index === reserveIndex ? "#b86a0c" : "#748097"}
                 fontSize="11"
                 fontWeight={row.month === currentMonth ? 700 : 400}
               >
@@ -412,7 +456,7 @@ function CashFlowChart({ rows, currentMonth, todayMonth }: { rows: CashFlowRow[]
               cx={x(index)}
               cy={y(row.balance)}
               r="4.5"
-              fill={row.balance <= 0 ? "#c53b3b" : "#203f8c"}
+              fill={row.balance <= 0 ? "#c53b3b" : row.balance < reserve ? "#e08a1e" : "#203f8c"}
               stroke="#ffffff"
               strokeWidth="2"
             >
