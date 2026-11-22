@@ -39,7 +39,11 @@ export default function Home({
   // 이번 달은 아직 마감되지 않았으므로 마감된 지난달 데이터를 강조하고 카드에 표시
   const currentMonth = addMonths(todayMonth, -1);
   const currentRow = rows?.find((row) => row.month === currentMonth && row.net !== null);
-  const complete = rows?.every((row) => row.balance !== null) ?? false;
+  // 판정 범위: 첫 달부터 잔고를 계산할 수 있는 마지막 달까지. 예측이 끝난 뒤의 빈 달은 판정에서 빼고
+  // (보고서·시뮬레이션의 "N개월 이상"과 같은 기준), 그 사이에 빠진 달이 있을 때만 확인 불가로 둡니다.
+  const lastKnownIndex = rows ? rows.reduce((last, row, index) => (row.balance !== null ? index : last), -1) : -1;
+  const lastKnownRow = lastKnownIndex >= 0 ? rows![lastKnownIndex] : undefined;
+  const complete = lastKnownIndex >= 0 && rows!.slice(0, lastKnownIndex + 1).every((row) => row.balance !== null);
 
   // 브라우저 탭 제목
   useEffect(() => {
@@ -199,8 +203,8 @@ export default function Home({
                           예측 월의 결과는 전달받은 예상 수입·지출을<br/>기준으로 합니다.
                         </>
                       ) : (
-                       complete
-                          ? "전달받은 12개월 수입·지출 기준으로 월말 잔고가 0원보다 높게 유지됩니다."
+                       complete && lastKnownRow
+                          ? `${formatMonth(lastKnownRow.month)}까지의 수입·지출(예측 포함) 기준으로 월말 잔고가 0원보다 높게 유지됩니다.`
                           : "누락된 월의 수입·지출을 입력하면 이후의 잔고와 소진 여부를 확인할 수 있습니다." )}
                     </p>
                   </div>
