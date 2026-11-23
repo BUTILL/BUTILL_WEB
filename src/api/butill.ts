@@ -1,5 +1,5 @@
 import { ApiError, apiFetch } from "./client";
-import { CHART_OPTIONS, withRecords, type MonthlyRecord, type RecordedAnalysis } from "./localAnalysis";
+import { CHART_OPTIONS, RUNWAY_OPTIONS, withRecords, type MonthlyRecord, type RecordedAnalysis } from "./localAnalysis";
 import type {
   Analysis, Comparison, Finances, IngredientCosts, IngredientPrices, Store, SupportPrograms, TaxSettings,
 } from "./types";
@@ -30,7 +30,7 @@ export type StoreAnalysis = {
   store: Store | null;
   finances: Finances | null;
   analysis: Analysis | null; // 경영정보로 계산한 앞으로의 흐름
-  recorded?: RecordedAnalysis | null; // 월별 실적이 있으면 실적 + 예측 6개월 (보고서·시나리오)
+  recorded?: RecordedAnalysis | null; // 월별 실적이 있으면 실적 + 예측 12개월 (보고서·시나리오·캐시런웨이 판정)
   chart?: RecordedAnalysis | null; // 현금흐름 그래프용 12칸: 최근 실적(최대 6개월) + 예측(최소 6개월)
 };
 
@@ -57,7 +57,7 @@ export async function loadStoreAnalysis(): Promise<StoreAnalysis> {
   const analysis = await apiFetch<Analysis>("/api/v1/analyses/preview", { method: "POST", body: finances.input, auth: false });
   // 마지막 실적 달 말 잔액 = 경영정보의 현재 보유자금, 예비자금은 분석과 같은 기준
   const reserve = analysis.initial_cash - analysis.initial_available_cash;
-  const recorded = withRecords(records, analysis.initial_cash, reserve, analysis.monthly);
+  const recorded = withRecords(records, analysis.initial_cash, reserve, analysis.monthly, RUNWAY_OPTIONS);
   const chart = withRecords(records, analysis.initial_cash, reserve, analysis.monthly, CHART_OPTIONS);
   return { store, finances, analysis, recorded, chart };
 }

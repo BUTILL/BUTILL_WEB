@@ -1,4 +1,4 @@
-import { CHART_OPTIONS, withRecords, type MonthlyRecord } from "../api/localAnalysis";
+import { CHART_OPTIONS, RUNWAY_OPTIONS, withRecords, type MonthlyRecord } from "../api/localAnalysis";
 
 // 체험 모드 예시 실적: 2026년 6월~11월(팀 공유 예시표, 단위 만원).
 // 표의 지출 합계를 고정비 1,100만원 + 7월 비정기 지출 150만원 + 나머지 식재료비로 나눴다.
@@ -23,10 +23,11 @@ export const demoRecords: MonthlyRecord[] = rows.map((r) => ({
   irregular_cost: r.irregular * MANWON,
 }));
 
-export const demoRecorded = withRecords(demoRecords, 662 * MANWON, 500 * MANWON)!;
+// 보고서·시뮬레이션·캐시런웨이 판정용: 실적 6개월 + 예측 12개월(시뮬레이션 그래프는 화면에서 예측 6개월까지만 그림)
+export const demoRecorded = withRecords(demoRecords, 662 * MANWON, 500 * MANWON, [], RUNWAY_OPTIONS)!;
 // 현금흐름 그래프용: 로그인 모드와 같은 12칸 규칙
 export const demoChart = withRecords(demoRecords, 662 * MANWON, 500 * MANWON, [], CHART_OPTIONS)!;
 // 분석 보고서용: 실적 6개월
 export const demoAnalysis = demoRecorded.history;
-// 시뮬레이션용: 실적 6개월 + 예측 6개월
+// 시뮬레이션용: 실적 6개월 + 예측 12개월
 export const demoForecastAnalysis = demoRecorded.combined;

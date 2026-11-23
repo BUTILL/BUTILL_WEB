@@ -69,7 +69,10 @@ export type RecordedAnalysis = {
   forecastStart: number; // combined에서 예측이 시작되는 순번
 };
 
+// 그래프에 보여 주는 예측 개월 수(현금흐름 그래프 최소 예측, 시뮬레이션 그래프)
 export const FORECAST_MONTHS = 6;
+// 캐시런웨이(버틸 기간)를 판정하는 예측 개월 수. 그래프 표시 범위와 별개로 서버 예측 기간(12개월)만큼 본다
+export const RUNWAY_FORECAST_MONTHS = 12;
 const AVERAGE_MONTHS = 3;
 
 const toInput = (m: MonthInput): MonthInput => ({
@@ -81,14 +84,17 @@ const net = (m: MonthInput) => m.sales - m.ingredient_cost - m.fixed_cost - m.ir
 // - 실적은 마지막으로 이어진 구간만 쓴다(빈 달이 있으면 그 뒤부터)
 // - 마지막 실적 달의 월말 잔액 = 지금 보유자금(currentCash)으로 보고, 지난 잔액은 거꾸로 계산한다
 // - 예측은 경영정보로 계산한 달(forecast)을 쓰고, 다음 달과 이어지지 않으면 최근 3개월 평균을 쓴다
-// - options가 없으면 "실적 전체 + 예측 6개월"(보고서·시나리오 기준). 그래프용은 chartOptions를 넘긴다
+// - options가 없으면 "실적 전체 + 예측 6개월". 런웨이 판정용은 RUNWAY_OPTIONS, 현금흐름 그래프용은 CHART_OPTIONS
 export type RecordedOptions = {
   maxActualMonths?: number; // 최근 실적을 최대 몇 개월까지 쓸지
   totalMonths?: number; // 실적 + 예측 전체 칸 수. 남는 칸을 예측으로 채우되 예측은 최소 6개월
+  forecastMonths?: number; // 예측 개월 수를 직접 정할 때 (totalMonths보다 우선)
 };
 
 // 현금흐름 그래프: 12칸 = 최근 실적(최대 6개월) + 나머지 예측(최소 6개월)
 export const CHART_OPTIONS: RecordedOptions = { maxActualMonths: 6, totalMonths: 12 };
+// 보고서·시뮬레이션·홈 캐시런웨이: 실적 전체 + 예측 12개월로 버틸 기간을 판정
+export const RUNWAY_OPTIONS: RecordedOptions = { forecastMonths: RUNWAY_FORECAST_MONTHS };
 
 export function withRecords(
   records: MonthlyRecord[],
@@ -103,9 +109,8 @@ export function withRecords(
   const segment = sorted.slice(Math.max(0, first));
   const actual = options.maxActualMonths ? segment.slice(-options.maxActualMonths) : segment;
   if (!actual.length) return null;
-  const forecastMonths = options.totalMonths
-    ? Math.max(FORECAST_MONTHS, options.totalMonths - actual.length)
-    : FORECAST_MONTHS;
+  const forecastMonths = options.forecastMonths
+    ?? (options.totalMonths ? Math.max(FORECAST_MONTHS, options.totalMonths - actual.length) : FORECAST_MONTHS);
 
   const start = actual[0].month;
   const startCash = currentCash - actual.reduce((total, m) => total + net(m), 0);

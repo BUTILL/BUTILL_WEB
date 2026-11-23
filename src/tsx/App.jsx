@@ -75,16 +75,19 @@ function analysisNotice(state, retry) {
 function HomePage() {
   const demo = isDemo();
   const [state, reload] = useLoad(demo ? loadNothing : loadStoreAnalysis);
-  // 그래프는 12칸(최근 실적 최대 6개월 + 나머지 예측)으로 그리고, 캐시런웨이 판정은 Home에서
-  // 보고서·시나리오와 같은 "실적 + 예측 6개월" 범위로 한다. 실적이 없으면 경영정보 예측.
-  if (demo) return <Home data={toDashboard(demoChart.combined, demoChart.forecastStart)} />;
+  // 그래프는 12칸(최근 실적 최대 6개월 + 나머지 예측)으로 그리고, 캐시런웨이는 보고서·시나리오와 같은
+  // "실적 + 예측 12개월"(recorded)로 판정한다. 실적이 없으면 경영정보 예측.
+  if (demo) {
+    return <Home data={toDashboard(demoChart.combined, demoChart.forecastStart)} outlook={demoRecorded.combined} />;
+  }
   const chart = state.status === "ready" ? state.data?.chart : null;
+  const recorded = state.status === "ready" ? state.data?.recorded : null;
   const analysis = state.status === "ready" ? state.data?.analysis : null;
   const notice = analysisNotice(state, () => reload().catch(() => undefined));
   const data = chart
     ? toDashboard(chart.combined, chart.forecastStart)
     : analysis ? toDashboard(analysis) : null;
-  return <Home data={data} notice={notice} />;
+  return <Home data={data} outlook={recorded?.combined ?? analysis} notice={notice} />;
 }
 
 // 같은 브라우저에서 다시 열어도 마지막 새로고침 시각을 유지
