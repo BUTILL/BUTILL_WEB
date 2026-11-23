@@ -12,7 +12,7 @@ import { loadStoreAnalysis } from "../api/butill";
 import { toDashboard } from "../api/mappers";
 import { loadNothing, useLoad } from "../api/useLoad";
 import { isDemo } from "../data/demo";
-import { demoRecorded } from "../data/demoAnalysis";
+import { demoChart, demoRecorded } from "../data/demoAnalysis";
 import { hasWebSession } from "../data/webSession";
 import "../css/App.css";
 import "../css/DeliveredPages.css";
@@ -75,13 +75,14 @@ function analysisNotice(state, retry) {
 function HomePage() {
   const demo = isDemo();
   const [state, reload] = useLoad(demo ? loadNothing : loadStoreAnalysis);
-  // 보고서·시나리오와 같은 데이터: 월별 실적이 있으면 실적 + 예측 6개월, 없으면 경영정보 예측
-  if (demo) return <Home data={toDashboard(demoRecorded.combined, demoRecorded.forecastStart)} />;
-  const recorded = state.status === "ready" ? state.data?.recorded : null;
+  // 그래프는 12칸(최근 실적 최대 6개월 + 나머지 예측)으로 그리고, 캐시런웨이 판정은 Home에서
+  // 보고서·시나리오와 같은 "실적 + 예측 6개월" 범위로 한다. 실적이 없으면 경영정보 예측.
+  if (demo) return <Home data={toDashboard(demoChart.combined, demoChart.forecastStart)} />;
+  const chart = state.status === "ready" ? state.data?.chart : null;
   const analysis = state.status === "ready" ? state.data?.analysis : null;
   const notice = analysisNotice(state, () => reload().catch(() => undefined));
-  const data = recorded
-    ? toDashboard(recorded.combined, recorded.forecastStart)
+  const data = chart
+    ? toDashboard(chart.combined, chart.forecastStart)
     : analysis ? toDashboard(analysis) : null;
   return <Home data={data} notice={notice} />;
 }

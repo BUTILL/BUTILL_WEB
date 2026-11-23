@@ -81,24 +81,38 @@ const net = (m: MonthInput) => m.sales - m.ingredient_cost - m.fixed_cost - m.ir
 // - 실적은 마지막으로 이어진 구간만 쓴다(빈 달이 있으면 그 뒤부터)
 // - 마지막 실적 달의 월말 잔액 = 지금 보유자금(currentCash)으로 보고, 지난 잔액은 거꾸로 계산한다
 // - 예측은 경영정보로 계산한 달(forecast)을 쓰고, 다음 달과 이어지지 않으면 최근 3개월 평균을 쓴다
+// - options가 없으면 "실적 전체 + 예측 6개월"(보고서·시나리오 기준). 그래프용은 chartOptions를 넘긴다
+export type RecordedOptions = {
+  maxActualMonths?: number; // 최근 실적을 최대 몇 개월까지 쓸지
+  totalMonths?: number; // 실적 + 예측 전체 칸 수. 남는 칸을 예측으로 채우되 예측은 최소 6개월
+};
+
+// 현금흐름 그래프: 12칸 = 최근 실적(최대 6개월) + 나머지 예측(최소 6개월)
+export const CHART_OPTIONS: RecordedOptions = { maxActualMonths: 6, totalMonths: 12 };
+
 export function withRecords(
   records: MonthlyRecord[],
   currentCash: number,
   reserve: number,
   forecast: AnalysisMonth[] = [],
+  options: RecordedOptions = {},
 ): RecordedAnalysis | null {
   const sorted = [...records].sort((a, b) => a.month.localeCompare(b.month));
   let first = sorted.length - 1;
   while (first > 0 && addMonth(sorted[first - 1].month, 1) === sorted[first].month) first -= 1;
-  const actual = sorted.slice(Math.max(0, first));
+  const segment = sorted.slice(Math.max(0, first));
+  const actual = options.maxActualMonths ? segment.slice(-options.maxActualMonths) : segment;
   if (!actual.length) return null;
+  const forecastMonths = options.totalMonths
+    ? Math.max(FORECAST_MONTHS, options.totalMonths - actual.length)
+    : FORECAST_MONTHS;
 
   const start = actual[0].month;
   const startCash = currentCash - actual.reduce((total, m) => total + net(m), 0);
   const next = addMonth(actual[actual.length - 1].month, 1);
   const from = forecast.findIndex((m) => m.month === next);
-  let future = from < 0 ? [] : forecast.slice(from, from + FORECAST_MONTHS).map(toInput);
-  if (future.length < FORECAST_MONTHS) {
+  let future = from < 0 ? [] : forecast.slice(from, from + forecastMonths).map(toInput);
+  if (future.length < forecastMonths) {
     const recent = actual.slice(-AVERAGE_MONTHS);
     const average = (pick: (m: MonthInput) => number) =>
       Math.round(recent.reduce((total, m) => total + pick(m), 0) / recent.length / 10_000) * 10_000;
@@ -108,7 +122,7 @@ export function withRecords(
       fixed_cost: average((m) => m.fixed_cost),
       irregular_cost: 0,
     };
-    future = [...future, ...Array.from({ length: FORECAST_MONTHS - future.length }, () => ({ ...typical }))];
+    future = [...future, ...Array.from({ length: forecastMonths - future.length }, () => ({ ...typical }))];
   }
   const inputs = actual.map(toInput);
   return {
