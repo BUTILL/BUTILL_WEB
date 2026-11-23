@@ -4,17 +4,22 @@ import {addMonths,buildCashFlowRows,createChartGeometry,formatMoney,formatMonth,
 import type { CashFlowRow, DashboardData } from "../data/homeData";
 import DashboardHeader from "./DashboardHeader";
 import type { DashboardHeaderProps } from "./DashboardHeader";
-import { FORECAST_MONTHS } from "../api/localAnalysis";
+import type { Analysis } from "../api/types";
 
 // API 응답 또는 상위 화면의 데이터를 전달하면 그래프와 카드가 함께 갱신
 type HomeProps = DashboardHeaderProps & {
   data?: DashboardData | null;
+  // 캐시런웨이 판정용 분석(실적 + 예측 12개월). 그래프 표시 범위와 별개로 보고서·시뮬레이션·앱과 같은 기간을 본다
+  outlook?: Analysis | null;
   notice?: { title: string; message: string; action?: { label: string; onClick: () => void } } | null; // 데이터가 없을 때 안내
 };
+
+type JudgeRow = { month: string; balance: number | null };
 
 // 대시보드 전체 화면: data는 백엔드 응답 또는 상위 컴포넌트에서 전달
 export default function Home({
   data,
+  outlook,
   notice,
   ...headerProps
 }: HomeProps) {
@@ -24,12 +29,10 @@ export default function Home({
   const averageNet = availableRows.length
     ? availableRows.reduce((sum, row) => sum + (row.net ?? 0), 0) / availableRows.length
     : null;
-  // 그래프는 12칸(최근 실적 + 예측)까지 그리지만, 캐시런웨이는 보고서·시뮬레이션·앱과 같은
-  // "실적 + 예측 6개월" 범위에서만 판정합니다.
-  const firstForecastIndex = rows ? rows.findIndex((row) => row.isForecast) : -1;
-  const judgeRows = rows
-    ? rows.slice(0, firstForecastIndex < 0 ? rows.length : firstForecastIndex + FORECAST_MONTHS)
-    : null;
+  // 캐시런웨이는 그래프 칸이 아니라 판정용 분석(실적 + 예측 12개월)으로 본다. 없으면 그래프 칸으로 본다
+  const judgeRows: JudgeRow[] | null = outlook
+    ? outlook.monthly.map((m) => ({ month: m.month.slice(0, 7), balance: m.cash_balance }))
+    : rows;
   const riskRow = judgeRows?.find((row) => row.balance !== null && row.balance <= 0);
   // 캐시런웨이(보고서·시나리오)와 같은 기준: 잔고가 예비자금 아래로 내려가는 첫 달
   const reserve = data?.reserve ?? 0;
@@ -46,17 +49,10 @@ export default function Home({
   // 이번 달은 아직 마감되지 않았으므로 마감된 지난달 데이터를 강조하고 카드에 표시
   const currentMonth = addMonths(todayMonth, -1);
   const currentRow = rows?.find((row) => row.month === currentMonth && row.net !== null);
-  // 판정 범위: 첫 달부터 잔고를 계산할 수 있는 마지막 달까지. 예측이 끝난 뒤의 빈 달은 판정에서 빼고
-  // (보고서·시뮬레이션의 "N개월 이상"과 같은 기준), 그 사이에 빠진 달이 있을 때만 확인 불가로 둡니다.
+  // 판정 범위: 첫 달부터 잔고를 계산할 수 있는 마지막 달까지. 그 사이에 빠진 달이 있을 때만 확인 불가로 둡니다.
   const lastKnownIndex = judgeRows ? judgeRows.reduce((last, row, index) => (row.balance !== null ? index : last), -1) : -1;
   const lastKnownRow = lastKnownIndex >= 0 ? judgeRows![lastKnownIndex] : undefined;
   const complete = lastKnownIndex >= 0 && judgeRows!.slice(0, lastKnownIndex + 1).every((row) => row.balance !== null);
-  // 판정 범위(예측 6개월) 뒤, 그래프에만 보이는 달에서 예비자금 사용·현금 소진이 예상되면 카드에도 함께 알립니다.
-  const laterRows = rows && judgeRows ? rows.slice(judgeRows.length) : [];
-  const laterReserveRow = !reserveRow && reserve > 0
-    ? laterRows.find((row) => row.balance !== null && row.balance < reserve)
-    : undefined;
-  const laterRiskRow = !riskRow ? laterRows.find((row) => row.balance !== null && row.balance <= 0) : undefined;
 
   // 브라우저 탭 제목
   useEffect(() => {
@@ -205,7 +201,7 @@ export default function Home({
                     <span>현금 소진 예상 시점</span>
 
                     <strong className={riskRow ? "negative" : complete ? "positive" : ""}>
-                      {riskRow ? formatMonth(riskRow.month) : complete ? "예측 6개월 내 소진 없음" : "확인 불가"}
+                      {riskRow ? formatMonth(riskRow.month) : complete ? "기간 내 소진 없음" : "확인 불가"}
                     </strong>
 
                     <p>
@@ -216,21 +212,9 @@ export default function Home({
                           예측 월의 결과는 전달받은 예상 수입·지출을<br/>기준으로 합니다.
                         </>
                       ) : (
-                       complete && lastKnownRow ? (
-                          <>
-                            {formatMonth(lastKnownRow.month)}까지(예측 6개월)의 수입·지출 기준으로 월말 잔고가 0원보다 높게 유지됩니다.
-                            {(laterReserveRow || laterRiskRow) && (
-                              <>
-                                <br />
-                                그 뒤 그래프에서는
-                                {laterReserveRow && ` ${formatMonth(laterReserveRow.month)}부터 예비자금 사용`}
-                                {laterReserveRow && laterRiskRow && ","}
-                                {laterRiskRow && ` ${formatMonth(laterRiskRow.month)}에 현금 소진`}
-                                이 예상돼요.
-                              </>
-                            )}
-                          </>
-                        ) : "누락된 월의 수입·지출을 입력하면 이후의 잔고와 소진 여부를 확인할 수 있습니다." )}
+                       complete && lastKnownRow
+                          ? `${formatMonth(lastKnownRow.month)}까지의 수입·지출(예측 포함) 기준으로 월말 잔고가 0원보다 높게 유지됩니다.`
+                          : "누락된 월의 수입·지출을 입력하면 이후의 잔고와 소진 여부를 확인할 수 있습니다." )}
                     </p>
                   </div>
                   </div>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CHART_OPTIONS, FORECAST_MONTHS, withRecords } from "../src/api/localAnalysis.ts";
+import { CHART_OPTIONS, FORECAST_MONTHS, RUNWAY_FORECAST_MONTHS, RUNWAY_OPTIONS, withRecords } from "../src/api/localAnalysis.ts";
+import { applyScenario } from "../src/api/scenarioEngine.ts";
 
 const MANWON = 10_000;
 const record = (month, sales = 2000) => ({
@@ -21,6 +22,16 @@ test("옵션 없이 부르면 실적 전체 + 예측 6개월을 유지한다", (
   const recorded = withRecords(months("2026-03", 9).map((m) => record(m)), 662 * MANWON, 66 * MANWON);
   assert.equal(recorded.forecastStart, 9);
   assert.equal(recorded.combined.monthly.length, 9 + FORECAST_MONTHS);
+});
+
+test("런웨이 판정용: 실적 전체 + 예측 12개월로 6개월을 넘는 버틸 기간도 숫자로 나온다", () => {
+  // 가용자금 595.8만원(보유 662만 − 예비 66.2만), 예측 월 순현금 −82만원 → 7개월 뒤 부족
+  const nov = { month: "2026-11-01", sales: 18_970_000, ingredient_cost: 5_590_000, fixed_cost: 14_200_000, irregular_cost: 0 };
+  const recorded = withRecords([nov], 6_620_000, 662_000, [], RUNWAY_OPTIONS);
+  assert.equal(recorded.combined.monthly.length, 1 + RUNWAY_FORECAST_MONTHS);
+  const base = applyScenario(recorded.combined, [], recorded.forecastStart);
+  assert.equal(base.period, "약 7개월");
+  assert.equal(base.runwayNote, "2027년 7월 가용자금 부족 예상");
 });
 
 test("그래프용: 실적이 1개월이면 예측 11개월로 12칸을 채운다", () => {
