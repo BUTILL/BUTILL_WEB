@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadStoreAnalysis, type StoreAnalysis } from "../api/butill";
+import { FORECAST_MONTHS } from "../api/localAnalysis";
 import { todayKst } from "../api/mappers";
 import {
   applyScenario,
@@ -250,7 +251,8 @@ export default function SimulationAnalysisWebPage() {
   const [assumptions, setAssumptions] = useState(loadSavedAssumptions);
   const demo = isDemo();
   const [state, reload] = useLoad<StoreAnalysis | null>(demo ? loadNothing : loadStoreAnalysis);
-  // 체험·로그인 모두 "실적 + 예측 6개월"(withRecords)로 그린다. 로그인인데 실적이 없으면 경영정보 예측만 그린다
+  // 체험·로그인 모두 "실적 + 예측 12개월"(withRecords)로 버틸 기간을 계산하고, 그래프는 예측 6개월까지만 그린다.
+  // 로그인인데 실적이 없으면 경영정보 예측만 그린다
   const recorded = demo ? demoRecorded : state.status === "ready" ? state.data?.recorded ?? null : null;
   const analysis = recorded?.combined ?? (state.status === "ready" ? state.data?.analysis ?? null : null);
   const monthKeys = analysis?.monthly.map((m) => m.month) ?? [];
@@ -270,6 +272,10 @@ export default function SimulationAnalysisWebPage() {
       assumptions: [describeAssumptions(list, months)],
     };
   });
+  // 그래프 표시 범위: 실적 + 예측 6개월 (버틸 기간·추세 문구는 위의 12개월 계산 그대로)
+  const chartEnd = recorded ? Math.min(months.length, forecastStart + FORECAST_MONTHS) : months.length;
+  const chartMonths = months.slice(0, chartEnd);
+  const chartScenarios = scenarios.map((item) => ({ ...item, fundsInTenThousands: item.fundsInTenThousands.slice(0, chartEnd) }));
   const scenario = scenarios.find(({ key }) => key === selectedKey) ?? scenarios[0];
   const items = assumptions[selectedKey];
   const resolved = indicesOf(selectedKey);
@@ -280,7 +286,9 @@ export default function SimulationAnalysisWebPage() {
     startGroups.set(a.startIndex, [...(startGroups.get(a.startIndex) ?? []), order + 1]);
   });
   const assumptionStarts = analysis
-    ? [...startGroups].sort(([a], [b]) => a - b).map(([index, numbers]) => ({ index, label: `가정 ${numbers.join("·")}` }))
+    ? [...startGroups].sort(([a], [b]) => a - b)
+      .filter(([index]) => index < chartEnd)
+      .map(([index, numbers]) => ({ index, label: `가정 ${numbers.join("·")}` }))
     : [];
   const emptyMessage = state.status === "loading"
     ? "시나리오를 계산하는 중이에요."
@@ -363,9 +371,9 @@ export default function SimulationAnalysisWebPage() {
               </div>
               <span className="analysis-period">
                 {analysis
-                  ? forecastStart > 0 && forecastStart < months.length
-                    ? `${months[0]}~${months[forecastStart - 1]} 실제 · ${months.length - forecastStart}개월 예측`
-                    : `${months[0]}부터 ${months.length}개월`
+                  ? forecastStart > 0 && forecastStart < chartMonths.length
+                    ? `${chartMonths[0]}~${chartMonths[forecastStart - 1]} 실제 · ${chartMonths.length - forecastStart}개월 예측`
+                    : `${chartMonths[0]}부터 ${chartMonths.length}개월`
                   : "전망"}
               </span>
             </div>
@@ -394,8 +402,8 @@ export default function SimulationAnalysisWebPage() {
             {analysis ? (
               <AnalysisChart
                 selectedKey={selectedKey}
-                scenarios={scenarios}
-                months={months}
+                scenarios={chartScenarios}
+                months={chartMonths}
                 forecastStart={forecastStart}
                 assumptionStarts={assumptionStarts}
               />
